@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -14,7 +12,7 @@ public class InventoryLogicHandler : MonoBehaviour
     }
 
     //async to prevent lag spikes if inventorylist has 100s of times. 
-    private async void BindSlots(CreateContainer container)
+    private async void BindSlots(Container container)
     {
         for (int i = 0; i < container.gameObject.transform.childCount; i++)
         {
@@ -29,9 +27,8 @@ public class InventoryLogicHandler : MonoBehaviour
     }
 
 
-
     //async to prevent lag spikes if inventorylist has 100s of times. 
-    private async void UnBindSlots(CreateContainer container)
+    private async void UnBindSlots(Container container)
     {
         for (int i = 0; i < container.gameObject.transform.childCount; i++)
         {
@@ -45,31 +42,45 @@ public class InventoryLogicHandler : MonoBehaviour
         }
     }
 
-    public static void AddItemToContainer(CreateContainer container, ItemSO item, int amount = 1)
+    public static int AddItemToContainer(Container container, ItemSO item, int amount = 1)
     {
-
         int remaining = container.AddToContainer(item, amount);
         if (remaining > 0)
-        {
             Debug.LogWarning(container + " has " + remaining + " left over that didn't fit.");
-        }
+        return remaining;
     }
-    public static void RevomeItemFormContainer(CreateContainer container, ItemSO item, int amount = 1)
+    public static void RevomeItemFormContainer(Container container, ItemSO item, int amount = 1)
     {
 
-        int remaining = container.Remove(item, amount);
+        int remaining = container.RemoveForContainer(item, amount);
         if (remaining > 0)
         {
-            Debug.LogWarning(container + " has " + remaining + " left over that didn't fit.");
+            Debug.LogWarning(container + " has " + remaining + " which couldnt be removed.");
         }
     }
 
-    public void Register(CreateContainer container)
+    public static int AddWithOverflow(Container primary, Container overflow, ItemSO item, int amount)
     {
-        BindSlots(container);
+        int remaining = AddItemToContainer(primary, item, amount);
+        if (remaining > 0)
+            remaining = AddItemToContainer(overflow, item, remaining);
+        return remaining;
     }
-    public void UnRegister(CreateContainer container)
+
+    public void Register(params Container[] container)
     {
-        UnBindSlots(container);
+        foreach (var containers in container)
+        {
+            BindSlots(containers);
+        }
+            
+    }
+    public void UnRegister(params Container[] container)
+    {
+        foreach (var containers in container)
+        {
+            UnBindSlots(containers);
+        }
+
     }
 }

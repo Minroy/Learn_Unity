@@ -3,14 +3,18 @@ using UnityEngine.Scripting;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(GridLayoutGroup),typeof(Transform))]
-public sealed class CreateContainer : MonoBehaviour
+public sealed class Container : MonoBehaviour
 {
     #region This Part is needed for the Inventory System to work.
 
     [SerializeField] private Transform ContainerTrans;
     [SerializeField] private InventoryList InventoryList;
     [SerializeField] private GameObject Slots;
-    
+
+
+
+    public bool IsFull => InventoryList.IsFull;
+
     private void OnEnable()
     {
         ContainerTrans = transform;
@@ -24,23 +28,23 @@ public sealed class CreateContainer : MonoBehaviour
     public Slot GetSlot(int index)
     {
         return InventoryList[index];
-    }
+    } 
 
     public int AddToContainer(ItemSO itemType, int amount)
     {
         int spaceleft = InventoryList.TryAdd(itemType, amount);
         return spaceleft;
     }
-    public int Remove(ItemSO itemType, int amount)
+    public int RemoveForContainer(ItemSO itemType, int amount)
     {
         int spaceleft = InventoryList.TryRemove(itemType, amount);
+        Debug.Log(InventoryList[1]);
         return spaceleft;
     }
 
     private void GenerateSlots(int SlotsAmount)
     {
         InventoryList = new(true, transform.childCount);
-        // slot generation code later;
     }
 
     //private void OnDestroy()

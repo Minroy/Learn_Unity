@@ -1,40 +1,57 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
-[System.Serializable]
-public class InventoryList: List<Slot>
+public class InventoryList : IEnumerable<Slot>
 {
+    private readonly List<Slot> Slots;
+
     public bool IsFixedSize { get; private set; }
     public int MaxSize { get; private set; }
+    public int MinSize { get; private set; }
+    public int Count => Slots.Count;
 
-    public InventoryList(bool isFixedSize, int startSize, int maxSize = -1) : base(startSize)
+    public Slot this[int index] => Slots[index];
+
+    public bool IsFull
     {
-        IsFixedSize = isFixedSize;
-        MaxSize = isFixedSize ? startSize : maxSize;
-
-        for (int i = 0; i < startSize; i++)
+        get
         {
-            Add(new Slot());
+            foreach (var slot in Slots)
+            {
+                if (!slot.IsFull)
+                    return false;
+            }
+            return true;
         }
     }
+
+    public InventoryList(bool isFixedSize, int startSize, int maxSize = -1)
+    {
+        IsFixedSize = isFixedSize;
+        MinSize = startSize;
+        MaxSize = isFixedSize ? maxSize : -1;
+
+        Slots = new List<Slot>(startSize);
+        for (int i = 0; i < startSize; i++)
+            Slots.Add(new Slot());
+    }
+   
 
     public int TryAdd(ItemSO item, int amount = 1)
     {
         int remaining = amount;
 
-        foreach (var slot in this)
+        // Pass 1: Stack onto existing stacks.
+        foreach (var slot in Slots)
         {
             if (remaining <= 0) break;
-            if (item == slot.Item && !slot.IsFull)
-            {
-                int toAdd = Mathf.Min(remaining, slot.SpaceLeft);
-                slot.SlotAdd(toAdd);
-                remaining -= toAdd;
-            }
+            if (slot.Item == item && !slot.IsFull)
+                remaining = slot.SlotAdd(remaining);
         }
 
-        //Pass 2 : if all the current slots, of the item is full. find the a empty and add to it.
-        foreach (var slot in this)
+        // Pass 2: Fill empty Slots.
+        foreach (var slot in Slots)
         {
             if (remaining <= 0) break;
             if (slot.IsEmpty)
@@ -45,54 +62,54 @@ public class InventoryList: List<Slot>
             }
         }
 
-        //Pass 3 : if the List is a Dynamic Type. It Will Make New SLots on the Gameobject and Add it
+        // Pass 3: Grow the inventory if it's dynamic.
         if (remaining > 0 && !IsFixedSize)
         {
-            int slotsNeeded = Mathf.CeilToInt((float)remaining / item.MaxAmount);
+            int slotsNeeded = Mathf.CeilToInt((float)remaining / item.MaxAmount); // check how many Slots you need
             for (int i = 0; i < slotsNeeded; i++)
             {
                 if (remaining <= 0) break;
-                var newSlot = new Slot(); // see note below
+                var newSlot = new Slot();
                 int toAdd = Mathf.Min(remaining, item.MaxAmount);
                 newSlot.Init(item, toAdd);
                 remaining -= toAdd;
-                Add(newSlot);
+                Slots.Add(newSlot);
             }
         }
 
         if (remaining > 0)
-            Debug.Log(nameof(InventoryList) + ": full, " + remaining + " of " + item.displayName + " not added.");
+            Debug.Log($"{nameof(InventoryList)}: Full. {remaining} {item.displayName} couldn't be added.");
 
         return remaining;
     }
 
     public int TryRemove(ItemSO item, int amount)
     {
-        int amountToRemove = amount;
-        for (int i = Count - 1; i >= 0; i--)
-        {
-            if (item == this[i].Item)
-            {
-                int currentAmount = Mathf.Min(amountToRemove, this[i].Amount);
-                this[i].SlotRemove(currentAmount);
-                amountToRemove -= currentAmount;
+        int remaining = amount;
 
-                if (this[i].IsEmpty && !IsFixedSize)
-                    RemoveAt(i);
-            }
+        for (int i = Slots.Count - 1; i >= 0; i--)
+        {
+            Slot slot = Slots[i];
+            if (slot.Item != item) continue;
+
+            int toRemove = Mathf.Min(remaining, slot.Amount);
+            remaining = slot.SlotRemove(toRemove);
+
+            if (slot.IsEmpty && !IsFixedSize && (MinSize < this.Count))
+                Slots.RemoveAt(i);
+
+            if (remaining <= 0) break;
         }
-        return amountToRemove;
+
+        return remaining;
     }
 
     public void DebugInventory()
     {
-        foreach (var slot in this)
-        {
-            Debug.Log(
-                slot.IsEmpty
-                ? "Empty"
-                : slot.Item.displayName + " x" + slot.Amount
-            );
-        }
+        foreach (Slot slot in Slots)
+            Debug.Log(slot.IsEmpty ? "Empty" : $"{slot.Item.displayName} x{slot.Amount}");
     }
+
+    public IEnumerator<Slot> GetEnumerator() => Slots.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

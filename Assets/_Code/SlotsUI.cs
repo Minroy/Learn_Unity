@@ -14,7 +14,6 @@ public class SlotsUI : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler
     [SerializeField] private Color defaultColor;
     [SerializeField] private float clickFlashDuration;
 
-    private bool droppedSuccessfully;
     [SerializeField] private Image DraggedIcon;
 
 
@@ -25,7 +24,7 @@ public class SlotsUI : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler
 
 
     /// <summary>
-    /// the one that inputs data
+    /// Bind with a Corresponding slot. helps to know if slot has changed or not. 
     /// </summary>
     /// <param name="newSlot"></param>
     public void Bind(Slot newSlot)
@@ -36,6 +35,7 @@ public class SlotsUI : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler
         Redraw();
     }
 
+    // unbinds with the slot it is connected to. 
     public void UnBind()
     {
         if (slot != null) slot.OnChanged -= Redraw;
@@ -43,7 +43,9 @@ public class SlotsUI : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler
         Redraw();
     }
 
-
+    /// <summary>
+    /// This Draws the UI of the slot. Depending the data the slot has provided.
+    /// </summary>
     private void Redraw()
     {
         panel.enabled = false;
@@ -97,36 +99,20 @@ public class SlotsUI : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler
         DragIcon.Instance.Move(eventData.position);
     }
 
-    void IDropHandler.OnDrop(PointerEventData eventData)
+    public void OnDrop(PointerEventData eventData)
     {
-        Debug.Log("DROP FIRED");
-
         if (DraggedSlot == null)
-        {
-            Debug.Log("No dragged slot");
             return;
-        }
 
         if (DraggedSlot == slot)
-        {
-            Debug.Log("Dropped on itself");
             return;
-        }
 
-        Debug.Log("Swapping");
-
-        DraggedSlot.StackOrSwap(slot);
-
-        DraggedSlot = null;
+        // The slot we dropped onto is the destination.
+        slot.StackOrSwap(DraggedSlot);
     }
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        if (droppedSuccessfully)
-        {
-            // do nothing
-        }
-
         DragIcon.Instance.Hide();
         DraggedSlot = null;
     }

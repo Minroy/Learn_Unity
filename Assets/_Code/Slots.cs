@@ -64,30 +64,50 @@ public class Slot
     }
 
     // This either stacks or swaps
-    public int StackOrSwap(Slot other)
+    public void StackOrSwap(Slot source)
     {
-        bool sameItem = Item != null &&
-                        other.Item != null &&
-                        Item == other.Item;
-
-        if (sameItem)
+        // first check if both are not null.
+        // If they're the same item
+        if (Item != null && source.Item != null && Item == source.Item)
         {
-            int leftOver = SlotAdd(other.Amount);
+            // Destination is already full.
+            // then swap the full one with the one that got space. 
+            if (IsFull)
+            {
+                (ItemSO SameTemp_item, int SameTemp_amount) = (Item, Amount);
+                Init(source.Item, source.Amount);
+                source.Init(SameTemp_item, SameTemp_amount);
+                return;
+            }
 
+            // if destination got space, then do stacking. 
+            int leftOver = SlotAdd(source.Amount);
             if (leftOver == 0)
-                other.Clear();
+                source.Clear(); // clear if source if denstination took it all
             else
-                other.Init(other.Item, leftOver); // was: other.Amount = leftOver; other.OnChanged?.Invoke();
+                source.SetAmount(leftOver); // just change amount. 
 
-            return leftOver;
+            return;
         }
 
+        // Different items -> swap.
         (ItemSO item, int amount) = (Item, Amount);
 
-        Init(other.Item, other.Amount);
-        other.Init(item, amount);
+        Init(source.Item, source.Amount);
+        source.Init(item, amount);
+    }
 
-        return 0;
+    public void SetAmount(int amount)
+    {
+        Amount = amount;
+
+        if (Amount <= 0)
+        {
+            Clear();
+            return;
+        }
+
+        OnChanged?.Invoke();
     }
 
     // clears, 
