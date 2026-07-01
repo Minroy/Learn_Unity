@@ -88,8 +88,8 @@ public class InventoryList : IEnumerable<Slot>
                 // NOTE: Dont add Fire event before adding. It tells the wrong Index.
                 Slots.Add(newSlot);
                 Debug.Log($"OnSlotsAdd subscriber count: {OnSlotsAdd?.GetInvocationList().Length ?? 0}");
-                OnSlotsAdd?.Invoke(Slots.Count - 1); // fire event to notify how many slots should be made.
             }
+                OnSlotsAdd?.Invoke(slotsNeeded); // fire event to notify how many slots should be made.
         }
 
         if (remaining > 0)
@@ -112,7 +112,7 @@ public class InventoryList : IEnumerable<Slot>
 
             if (slot.IsEmpty && !IsFixedSize && (MinSize < this.Count))
             {
-               // Bugged Fixed. Null event and Index being empty. 
+                // Bugged Fixed. Null event and Index being empty. 
                 OnSlotsRemoved?.Invoke(i);
                 Slots.RemoveAt(i);
             }

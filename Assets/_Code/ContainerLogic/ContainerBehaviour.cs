@@ -56,11 +56,15 @@ public class ContainerBehaviour : MonoBehaviour
             inventoryList = GenerateList(isFixedSize, StartSize);
 
 #if UNITY_EDITOR
-        EditorApplication.delayCall += () =>
+        if (!Application.isPlaying)
         {
-            if (this != null)
-                GenerateSlots(StartSize);
-        };
+            EditorApplication.delayCall += () =>
+            {
+                if (this != null)
+                    GenerateSlots(StartSize);
+            };
+        }
+       
 #endif
     }
 
@@ -92,6 +96,7 @@ public class ContainerBehaviour : MonoBehaviour
     [ContextMenu("Generate Slots")]
     public void GenerateSlots(int amount)
     {
+        InventoryLogicHandler.Instance.UnRegister(this);
         RemoveSlots();
         AddSlots(amount);
     }
@@ -100,6 +105,7 @@ public class ContainerBehaviour : MonoBehaviour
 
     public void RemoveSlots()
     {
+        InventoryLogicHandler.Instance.UnRegister(this);
 #if UNITY_EDITOR
         if (!Application.isPlaying)
         {
@@ -149,6 +155,7 @@ public class ContainerBehaviour : MonoBehaviour
             GameObject slot = Instantiate(SlotPrefab, transform);
             slot.name = $"Slot_{i}";
         }
+        InventoryLogicHandler.Instance.Register(this);
     }
     // ---------------- ACCESS ----------------
 
