@@ -15,6 +15,6 @@ MonoBehaviour:
   description: blue
   displayName: blue box
   icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
-  MaxAmount: 25
+  MaxAmount: 1
   ItemType: 0
   Rarity: 0

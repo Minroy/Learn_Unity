@@ -22,6 +22,7 @@ public class Slot
     /// <param name="amount"> amount to add, defualt is 1</param>
     public void Init(ItemSO item, int amount = 1)
     {
+        Debug.Log("Slots init called");
         Item = item;
         Amount = item == null ? 0 : amount;
         OnChanged?.Invoke();

@@ -9,6 +9,7 @@ using UnityEditor;
 /// Base class that turns a GameObject into a Container.
 /// Override methods to change behaviour.
 /// </summary>
+[RequireComponent(typeof(GridLayout))]
 public class ContainerBehaviour : MonoBehaviour
 {
 
@@ -38,8 +39,9 @@ public class ContainerBehaviour : MonoBehaviour
     public virtual void Awake()
     {
         IsRegisted = false;
-
         inventoryList = GenerateList(isFixedSize, StartSize);
+
+        inventoryList.OnSlotsAdd += AddSlots; // THIS MF WAS NOT SUBBED IN THE CONTAINER!!
 
         InventoryLogicHandler.Instance.Register(this);
     }
@@ -88,7 +90,7 @@ public class ContainerBehaviour : MonoBehaviour
 
 
     [ContextMenu("Generate Slots")]
-    public virtual void GenerateSlots(int amount)
+    public void GenerateSlots(int amount)
     {
         RemoveSlots();
         AddSlots(amount);
@@ -96,56 +98,58 @@ public class ContainerBehaviour : MonoBehaviour
 
 
 
-    public virtual void RemoveSlots()
+    public void RemoveSlots()
     {
-        for (int i = transform.childCount - 1; i >= 0; i--)
-        {
-            Transform child = transform.GetChild(i);
-
-
 #if UNITY_EDITOR
-            if (!Application.isPlaying)
-            {
-                Undo.DestroyObjectImmediate(child.gameObject);
-            }
-            else
-#endif
-            {
-                Destroy(child.gameObject);
-            }
+        if (!Application.isPlaying)
+        {
+            // editor-time — always allowed, designer is reshaping the container
+            for (int i = transform.childCount - 1; i >= 0; i--)
+                Undo.DestroyObjectImmediate(transform.GetChild(i).gameObject);
+            return;
         }
+#endif
+
+        // runtime — only allowed for dynamic containers
+        if (isFixedSize)
+        {
+            Debug.LogWarning($"{nameof(ContainerBehaviour)}: Cannot remove slots from a fixed-size container at runtime.");
+            return;
+        }
+
+        for (int i = transform.childCount - 1; i >= 0; i--)
+            Destroy(transform.GetChild(i).gameObject);
     }
 
 
 
-    public virtual void AddSlots(int amount)
+    public void AddSlots(int amount)
     {
-        for (int i = 0; i < amount; i++)
-        {
-
 #if UNITY_EDITOR
-            GameObject slot;
-            if (!Application.isPlaying)
+        if (!Application.isPlaying)
+        {
+            for (int i = 0; i < amount; i++)
             {
-                slot = PrefabUtility.InstantiatePrefab(SlotPrefab, transform) as GameObject;
+                GameObject slot = PrefabUtility.InstantiatePrefab(SlotPrefab, transform) as GameObject;
+                slot.name = $"Slot_{i}";
+                Undo.RegisterCreatedObjectUndo(slot, "Add Slot");
             }
-            else
-            {
-                slot = Instantiate(SlotPrefab, transform);
-            }
-#else
-
-            GameObject slot = Instantiate(SlotPrefab, transform);
-
+            return;
+        }
 #endif
 
+        if (isFixedSize)
+        {
+            Debug.LogWarning($"{nameof(ContainerBehaviour)}: Cannot add slots to a fixed-size container at runtime.");
+            return;
+        }
 
+        for (int i = 0; i < amount; i++)
+        {
+            GameObject slot = Instantiate(SlotPrefab, transform);
             slot.name = $"Slot_{i}";
         }
     }
-
-
-
     // ---------------- ACCESS ----------------
 
 

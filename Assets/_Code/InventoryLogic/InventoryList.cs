@@ -69,6 +69,7 @@ public class InventoryList : IEnumerable<Slot>
         // Pass 3: If there is no empty slots, and inventory is dynamic Add new slots and fill them.
         if (remaining > 0 && !IsFixedSize)
         {
+            Debug.Log($"Pass 3 running. remaining: {remaining}, IsFixedSize: {IsFixedSize}, slotsNeeded: {Mathf.CeilToInt((float)remaining / item.MaxAmount)}");
             int slotsNeeded = Mathf.CeilToInt((float)remaining / item.MaxAmount); // check how many Slots you need
 
 
@@ -76,14 +77,17 @@ public class InventoryList : IEnumerable<Slot>
             for (int i = 0; i < slotsNeeded; i++)
             {
                 if (remaining <= 0) break;
+
                 var newSlot = new Slot();
                 int toAdd = Mathf.Min(remaining, item.MaxAmount);
                 newSlot.Init(item, toAdd);
                 remaining -= toAdd;
-                
+                Debug.Log(Count);
+
                 // Bug fixed, null ref due to event again. 
                 // NOTE: Dont add Fire event before adding. It tells the wrong Index.
                 Slots.Add(newSlot);
+                Debug.Log($"OnSlotsAdd subscriber count: {OnSlotsAdd?.GetInvocationList().Length ?? 0}");
                 OnSlotsAdd?.Invoke(Slots.Count - 1); // fire event to notify how many slots should be made.
             }
         }
