@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,6 +11,9 @@ public class InventoryList : IEnumerable<Slot>
     public int MaxSize { get; private set; }
     public int MinSize { get; private set; }
     public int Count => Slots.Count;
+
+    public event Action<int> OnSlotsAdd;
+    public event Action<int> OnSlotsRemoved;
 
     public Slot this[int index] => Slots[index];
 
@@ -36,13 +40,13 @@ public class InventoryList : IEnumerable<Slot>
         for (int i = 0; i < startSize; i++)
             Slots.Add(new Slot());
     }
-   
 
-    public int TryAdd(ItemSO item, int amount = 1)
+
+    public virtual int TryAdd(ItemSO item, int amount = 1)
     {
         int remaining = amount;
 
-        // Pass 1: Stack onto existing stacks.
+        // Pass 1: Check if there are any Item that are not maxed out. and stack on those.
         foreach (var slot in Slots)
         {
             if (remaining <= 0) break;
@@ -50,7 +54,7 @@ public class InventoryList : IEnumerable<Slot>
                 remaining = slot.SlotAdd(remaining);
         }
 
-        // Pass 2: Fill empty Slots.
+        // Pass 2: Once Pass 1 done, check for emptySlots and fill them
         foreach (var slot in Slots)
         {
             if (remaining <= 0) break;
@@ -62,10 +66,13 @@ public class InventoryList : IEnumerable<Slot>
             }
         }
 
-        // Pass 3: Grow the inventory if it's dynamic.
+        // Pass 3: If there is no empty slots, and inventory is dynamic Add new slots and fill them.
         if (remaining > 0 && !IsFixedSize)
         {
             int slotsNeeded = Mathf.CeilToInt((float)remaining / item.MaxAmount); // check how many Slots you need
+
+
+            // do the same logic of adding. but init and add same time. 
             for (int i = 0; i < slotsNeeded; i++)
             {
                 if (remaining <= 0) break;
@@ -73,7 +80,11 @@ public class InventoryList : IEnumerable<Slot>
                 int toAdd = Mathf.Min(remaining, item.MaxAmount);
                 newSlot.Init(item, toAdd);
                 remaining -= toAdd;
+                
+                // Bug fixed, null ref due to event again. 
+                // NOTE: Dont add Fire event before adding. It tells the wrong Index.
                 Slots.Add(newSlot);
+                OnSlotsAdd?.Invoke(Slots.Count - 1); // fire event to notify how many slots should be made.
             }
         }
 
@@ -83,7 +94,7 @@ public class InventoryList : IEnumerable<Slot>
         return remaining;
     }
 
-    public int TryRemove(ItemSO item, int amount)
+    public virtual int TryRemove(ItemSO item, int amount)
     {
         int remaining = amount;
 
@@ -96,7 +107,11 @@ public class InventoryList : IEnumerable<Slot>
             remaining = slot.SlotRemove(toRemove);
 
             if (slot.IsEmpty && !IsFixedSize && (MinSize < this.Count))
+            {
+               // Bugged Fixed. Null event and Index being empty. 
+                OnSlotsRemoved?.Invoke(i);
                 Slots.RemoveAt(i);
+            }
 
             if (remaining <= 0) break;
         }
@@ -104,7 +119,7 @@ public class InventoryList : IEnumerable<Slot>
         return remaining;
     }
 
-    public void DebugInventory()
+    public virtual void DebugInventory()
     {
         foreach (Slot slot in Slots)
             Debug.Log(slot.IsEmpty ? "Empty" : $"{slot.Item.displayName} x{slot.Amount}");

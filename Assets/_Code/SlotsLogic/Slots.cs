@@ -67,7 +67,7 @@ public class Slot
     public void StackOrSwap(Slot source)
     {
         // first check if both are not null.
-        // If they're the same item
+        // If they're the same item and both are not full stack.
         if (Item != null && source.Item != null && Item == source.Item)
         {
             // Destination is already full.
