@@ -33,12 +33,12 @@ public class ContainerBehaviour : MonoBehaviour
 
     public bool IsFull => inventoryList != null && inventoryList.IsFull;
 
-    public bool IsRegisted { get; private set; }
+    public bool IsRegistered { get; private set; }
 
 
     public virtual void Awake()
     {
-        IsRegisted = false;
+        IsRegistered = false;
         inventoryList = GenerateList(isFixedSize, StartSize);
 
         inventoryList.OnSlotsAdd += AddSlots; // THIS MF WAS NOT SUBBED IN THE CONTAINER!!
@@ -161,6 +161,6 @@ public class ContainerBehaviour : MonoBehaviour
 
     public void RegistingSatus(bool status)
     {
-        IsRegisted = status;
+        IsRegistered = status;
     }
 }

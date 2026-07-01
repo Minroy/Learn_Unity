@@ -22,7 +22,7 @@ public class InventoryLogicHandler : MonoBehaviour
     //async to prevent lag spikes if inventorylist has 100s of times. 
     private async void BindSlots(ContainerBehaviour container)
     {
-        if (!container.IsRegisted)
+        if (!container.IsRegistered)
         {
             Debug.Log("regesting");
             for (int i = 0; i < container.gameObject.transform.childCount; i++)
@@ -44,7 +44,7 @@ public class InventoryLogicHandler : MonoBehaviour
     //async to prevent lag spikes if inventorylist has 100s of times. 
     private async void UnBindSlots(ContainerBehaviour container)
     {
-        if (!container.IsRegisted)
+        if (!container.IsRegistered)
         {
             Debug.Log("regesting");
             for (int i = 0; i < container.gameObject.transform.childCount; i++)
