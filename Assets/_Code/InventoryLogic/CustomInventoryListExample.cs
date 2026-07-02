@@ -1,3 +1,6 @@
+using InventoryModule;
+
+
 public class CustomInventoryListExample : InventoryList
 {
     private ItemRarity AllowRarity;

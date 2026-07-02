@@ -1,31 +1,48 @@
+using InventoryModule;
 using UnityEngine;
 using UnityEngine.UI;
-
-public class DragIcon : MonoBehaviour
+namespace InventoryModule
 {
-    [SerializeField] private Image image;
-    public static DragIcon Instance;
-
-    public void Awake()
+    public class DragIcon : MonoBehaviour
     {
-        image.enabled = false;
-        Instance = this;
+        [SerializeField] private Image image;
+        public static DragIcon Instance;
+
+        public void Awake()
+        {
+            image.enabled = false;
+            Instance = this;
+        }
+
+        public void Show(ItemSO item)
+        {
+            image.enabled = true;
+            image.sprite = item.icon;
+        }
+
+        public void Hide()
+        {
+
+            image.enabled = false;
+        }
+
+        public void Move(Vector2 position)
+        {
+            transform.position = position;
+        }
+
+
     }
 
-    public void Show(ItemSO item)
+    public struct DragContext
     {
-        image.enabled = true;
-        image.sprite = item.icon;
-    }
+        public ContainerBehaviour destinationContainer; // the container you are Moving into
+        public ContainerBehaviour SourceContainer; // the container you Reside in; 
 
-    public void Hide()
-    {
+        public int SourceIndex;
+        public int TargetIndex;
 
-        image.enabled = false;
-    }
-
-    public void Move(Vector2 position)
-    {
-        transform.position = position;
+        public Slot DestinationSlot
+            ;
     }
 }

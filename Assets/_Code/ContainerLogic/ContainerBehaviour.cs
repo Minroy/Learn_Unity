@@ -1,173 +1,166 @@
-using System;
 using UnityEngine;
-
+using UnityEngine.UI;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
-/// <summary>
-/// Base class that turns a GameObject into a Container.
-/// Override methods to change behaviour.
-/// </summary>
-[RequireComponent(typeof(GridLayout))]
-public class ContainerBehaviour : MonoBehaviour
+namespace InventoryModule
 {
-
-    //Hook up logic. to this later, ignore events for now. 
-    public event Action OnContainerOpened;
-    public event Action OnContainerClosed;
-    public event Action OnContainerDestroyed;
-    public event Action OnContainerEnabled;
-    public event Action OnContainerChanged;
-    public event Action OnContainerAdded;
-    public event Action OnContainerRemoved;
-    public event Action OnContainerSwaped;
-    public event Action OnContainerFull;
-
-    [Header("Inventory Settings")]
-    [SerializeField] protected InventoryList inventoryList;
-    [SerializeField] protected GameObject SlotPrefab;
-    [SerializeField] protected int StartSize = 1;
-    [SerializeField] protected bool isFixedSize;
-
-
-    public bool IsFull => inventoryList != null && inventoryList.IsFull;
-
-    public bool IsRegistered { get; private set; }
-
-
-    public virtual void Awake()
+    [RequireComponent(typeof(GridLayoutGroup))]
+    public class ContainerBehaviour : MonoBehaviour
     {
-        IsRegistered = false;
-        inventoryList = GenerateList(isFixedSize, StartSize);
 
-        inventoryList.OnSlotsAdd += AddSlots; // THIS MF WAS NOT SUBBED IN THE CONTAINER!!
+        //Hook up logic.to this later, ignore events for now.
 
-        InventoryLogicHandler.Instance.Register(this);
-    }
+        ////public event Action OnContainerOpened;
+        ////public event Action OnContainerClosed;
+        ////public event Action OnContainerDestroyed;
+        ////public event Action OnContainerEnabled;
+        ////public event Action OnContainerChanged;
+        ////public event Action OnContainerAdded;
+        ////public event Action OnContainerRemoved;
+        ////public event Action OnContainerSwaped;
+        ////public event Action OnContainerFull;
 
 
-    private void OnValidate()
-    {
-        if (SlotPrefab == null)
-            return;
+        [Header("Inventory Settings")]
+        [SerializeField] protected InventoryList inventoryList;
+        [SerializeField] protected GameObject SlotPrefab;
+        [SerializeField] protected int StartSize = 1;
+        [SerializeField] protected bool isFixedSize;
 
-        if (inventoryList == null)
+
+        public bool IsFixedSize => isFixedSize;
+        public InventoryList ContainerList => inventoryList;
+        public bool IsFull => inventoryList != null && inventoryList.IsFull;
+        public bool IsRegistered { get; private set; }
+
+        public virtual void Awake()
+        {
+            IsRegistered = false;
             inventoryList = GenerateList(isFixedSize, StartSize);
+            inventoryList.OnSlotsAdd += AddSlots;
 
-#if UNITY_EDITOR
-        if (!Application.isPlaying)
+            InventoryManager.Register(this);
+        }
+
+        private void OnValidate()
         {
-            EditorApplication.delayCall += () =>
+            if (SlotPrefab == null)
+                return;
+
+            inventoryList ??= GenerateList(isFixedSize, StartSize);
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
             {
-                if (this != null)
-                    GenerateSlots(StartSize);
-            };
-        }
-       
+                EditorApplication.delayCall += () =>
+                {
+                    if (this != null)
+                        GenerateSlots(StartSize);
+                };
+            }
 #endif
-    }
+        }
 
-
-    public virtual InventoryList GenerateList(bool isFixedSize, int startSize)
-    {
-        return new InventoryList(isFixedSize, startSize);
-    }
-
-
-    public virtual InventoryList GenerateList(bool isFixedSize, int startSize, int maxSize)
-    {
-        return new InventoryList(isFixedSize, startSize, maxSize);
-    }
-
-    public virtual int AddToContainer(ItemSO itemType, int amount)
-    {
-        return inventoryList.TryAdd(itemType, amount);
-    }
-
-    public virtual int RemoveForContainer(ItemSO itemType, int amount)
-    {
-        return inventoryList.TryRemove(itemType, amount);
-    }
-
-    // ---------------- SLOT GENERATION ----------------
-
-
-    [ContextMenu("Generate Slots")]
-    public void GenerateSlots(int amount)
-    {
-        InventoryLogicHandler.Instance.UnRegister(this);
-        RemoveSlots();
-        AddSlots(amount);
-    }
-
-
-
-    public void RemoveSlots()
-    {
-        InventoryLogicHandler.Instance.UnRegister(this);
-#if UNITY_EDITOR
-        if (!Application.isPlaying)
+        public virtual InventoryList GenerateList(bool isFixedSize, int startSize, int maxSize = -1)
         {
-            // editor-time — always allowed, designer is reshaping the container
+            return new InventoryList(isFixedSize, startSize, maxSize);
+        }
+
+        public virtual int AddToContainer(ItemSO itemType, int amount)
+        {
+            return inventoryList.TryAdd(itemType, amount);
+        }
+
+        public virtual int RemoveForContainer(ItemSO itemType, int amount)
+        {
+            return inventoryList.TryRemove(itemType, amount);
+        }
+
+        // ---------------- SLOT GENERATION ----------------
+
+        [ContextMenu("Generate Slots")]
+        public void GenerateSlots(int amount)
+        {
+            RemoveSlots();
+            AddSlots(amount);
+        }
+
+        public void RemoveSlots()
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                for (int i = transform.childCount - 1; i >= 0; i--)
+                    Undo.DestroyObjectImmediate(transform.GetChild(i).gameObject);
+                return;
+            }
+#endif
+
+            // Runtime: Only dynamic containers can change size
+            if (isFixedSize) return;
+
+            // FIX: Safely unbind from the manager BEFORE killing the UI components
+            InventoryManager.UnRegister(this);
+
             for (int i = transform.childCount - 1; i >= 0; i--)
-                Undo.DestroyObjectImmediate(transform.GetChild(i).gameObject);
-            return;
+                Destroy(transform.GetChild(i).gameObject);
         }
+
+        public void AddSlots(int amount)
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                for (int i = 0; i < amount; i++)
+                {
+                    GameObject slot = PrefabUtility.InstantiatePrefab(SlotPrefab, transform) as GameObject;
+                    slot.name = $"Slot_{i}";
+                    Undo.RegisterCreatedObjectUndo(slot, "Add Slot");
+                }
+                return;
+            }
 #endif
 
-        // runtime — only allowed for dynamic containers
-        if (isFixedSize)
-        {
-            Debug.LogWarning($"{nameof(ContainerBehaviour)}: Cannot remove slots from a fixed-size container at runtime.");
-            return;
-        }
+            if (isFixedSize) return;
 
-        for (int i = transform.childCount - 1; i >= 0; i--)
-            Destroy(transform.GetChild(i).gameObject);
-    }
-
-
-
-    public void AddSlots(int amount)
-    {
-#if UNITY_EDITOR
-        if (!Application.isPlaying)
-        {
+            // 1. Bulk-spawn all the new physical layouts first
+            int currentCount = transform.childCount;
             for (int i = 0; i < amount; i++)
             {
-                GameObject slot = PrefabUtility.InstantiatePrefab(SlotPrefab, transform) as GameObject;
-                slot.name = $"Slot_{i}";
-                Undo.RegisterCreatedObjectUndo(slot, "Add Slot");
+                GameObject slotObj = Instantiate(SlotPrefab, transform);
+                slotObj.name = $"Slot_{currentCount + i}";
             }
-            return;
-        }
-#endif
 
-        if (isFixedSize)
+            // FIX: Pull the Refresh call completely OUT of the loop!
+            // Doing it inside the loop forced it to clear and re-bind everything 
+            // multiple times for a single addition event (O(N^2) complexity). 
+            // Now it executes exactly once after the batch instantiation is complete.
+            InventoryManager.RefreshContainer(this);
+        }
+
+        public void AddAtIndex(int index)
         {
-            Debug.LogWarning($"{nameof(ContainerBehaviour)}: Cannot add slots to a fixed-size container at runtime.");
-            return;
+            inventoryList.AddAtIndex(index);
+
+            GameObject slotObj = Instantiate(SlotPrefab, transform);
+            slotObj.transform.SetSiblingIndex(index);
+            slotObj.name = $"Slot_{index}";
+
+            InventoryManager.RefreshContainer(this);
         }
 
-        for (int i = 0; i < amount; i++)
+        // ---------------- ACCESS ----------------
+
+        public Slot GetSlot(int index)
         {
-            GameObject slot = Instantiate(SlotPrefab, transform);
-            slot.name = $"Slot_{i}";
+            Debug.Log(inventoryList[index]);
+            return inventoryList[index];
         }
-        InventoryLogicHandler.Instance.Register(this);
-    }
-    // ---------------- ACCESS ----------------
 
-
-    public Slot GetSlot(int index)
-    {
-        return inventoryList[index];
-    }
-
-
-    public void RegistingSatus(bool status)
-    {
-        IsRegistered = status;
+        public void RegistingSatus(bool status)
+        {
+            IsRegistered = status;
+        }
     }
 }

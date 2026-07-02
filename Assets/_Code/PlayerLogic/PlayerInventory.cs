@@ -1,4 +1,5 @@
 using UnityEngine;
+using InventoryModule;
 
 public class PlayerInventory : MonoBehaviour
 {
@@ -19,6 +20,12 @@ public class PlayerInventory : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
             int leftover = hotBarContainer.AddToContainer(item, amountToAdd * 10);
+            if (leftover > 0)
+                backPack.AddToContainer(item, leftover);
+        }
+        if (Input.GetKeyDown(KeyCode.Alpha2))
+        {
+            int leftover = hotBarContainer.AddToContainer(item2, amountToAdd * 5);
             if (leftover > 0)
                 backPack.AddToContainer(item, leftover);
         }

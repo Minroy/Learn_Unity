@@ -1,0 +1,121 @@
+using JetBrains.Annotations;
+using UnityEngine;
+
+namespace InventoryModule
+{
+    [DefaultExecutionOrder(-1000)]
+    public static class InventoryManager
+    {
+        private static void BindSlots(ContainerBehaviour container)
+        {
+            if (!container.IsRegistered)
+            {
+                Debug.Log($"[InventoryManager] Registering: {container.name}");
+                int childCount = container.gameObject.transform.childCount;
+
+                for (int i = 0; i < childCount; i++)
+                {
+                    if (container.gameObject.transform.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
+                    {
+                        slotUI.Bind(container,container.GetSlot(i));
+                    }
+                }
+                container.RegistingSatus(true);
+            }
+        }
+
+        private static void UnBindSlots(ContainerBehaviour container)
+        {
+            // FIX: Only clear if it is actually registered right now
+            if (container.IsRegistered)
+            {
+                Debug.Log($"[InventoryManager] Unregistering: {container.name}");
+                int childCount = container.gameObject.transform.childCount;
+
+                for (int i = 0; i < childCount; i++)
+                {
+                    if (container.gameObject.transform.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
+                    {
+                        slotUI.UnBind();
+                    }
+                }
+                container.RegistingSatus(false);
+            }
+        }
+
+        /// <summary>
+        /// Wipes all current UI bindings and fully re-maps them to the backend data indexes.
+        /// Essential for dynamic containers when elements shift or expand mid-array.
+        /// </summary>
+        public static void RefreshContainer(ContainerBehaviour container)
+        {
+            if (container == null) return;
+
+            int childCount = container.gameObject.transform.childCount;
+
+            // 1. Force unbind all current UI elements to clear dirty states
+            for (int i = 0; i < childCount; i++)
+            {
+                if (container.gameObject.transform.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
+                    slotUI.UnBind();
+            }
+
+            // 2. Freshly bind every UI slot to its exact, current data index
+            for (int i = 0; i < childCount; i++)
+            {
+                if (container.gameObject.transform.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
+                {
+                    slotUI.Bind(container,container.GetSlot(i));
+                }
+            }
+
+            container.RegistingSatus(true);
+        }
+
+        /// <summary>
+        /// Registers the Containers with their respective Slots data.
+        /// </summary>
+        public static void Register(params ContainerBehaviour[] containers)
+        {
+            foreach (var container in containers)
+            {
+                BindSlots(container);
+            }
+        }
+
+        /// <summary>
+        /// Safely unregisters and clears UI slot tracking from the containers.
+        /// </summary>
+        public static void UnRegister(params ContainerBehaviour[] containers)
+        {
+            foreach (var container in containers)
+            {
+                UnBindSlots(container);
+            }
+        }
+
+        // ----------------------- DATA MANIPULATION API -----------------------
+
+        [MustUseReturnValue]
+        [Pure]
+        public static int AddItemToContainer(ContainerBehaviour container, ItemSO item, int amount = 1)
+        {
+            int remaining = container.AddToContainer(item, amount);
+            if (remaining > 0)
+                Debug.LogWarning($"{container.name} has {remaining} left over items that didn't fit.");
+            return remaining;
+        }
+
+        [MustUseReturnValue]
+        [Pure]
+        public static int RemoveItemFromContainer(ContainerBehaviour container, ItemSO item, int amount = 1)
+        {
+            int remaining = container.RemoveForContainer(item, amount);
+            if (remaining > 0)
+            {
+                Debug.LogWarning($"{container.name} has {remaining} items which couldn't be removed.");
+            }
+            return remaining;
+        }
+    }
+}
