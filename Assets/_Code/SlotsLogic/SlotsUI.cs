@@ -144,8 +144,9 @@ namespace InventoryModule
             DragInfo.TargetIndex = transform.GetSiblingIndex();
             DragInfo.DestinationSlot = slot;
 
+            InventoryResolver.Resovle(DraggedSlot, slot, DragInfo, true);
+           
 
-            InventoryResolver.Resovle(DraggedSlot, slot, DragInfo, false);
         }
 
 

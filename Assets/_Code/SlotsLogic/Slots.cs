@@ -1,9 +1,11 @@
 using System;
 using UnityEngine;
+
 namespace InventoryModule
 {
     public class Slot
     {
+        public bool Skip {  get; set; }
         public ItemSO Item { get; private set; }
         public int Amount { get; private set; }
 
@@ -31,7 +33,9 @@ namespace InventoryModule
 
         public Slot(ItemSO itemSO, int amount)
         {
-            Init(itemSO, amount);
+            Item = itemSO;
+            Amount = itemSO == null ? 0 : amount;
+            OnChanged?.Invoke();
         }
 
 

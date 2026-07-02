@@ -27,7 +27,7 @@ public class PlayerInventory : MonoBehaviour
         {
             int leftover = hotBarContainer.AddToContainer(item2, amountToAdd * 5);
             if (leftover > 0)
-                backPack.AddToContainer(item, leftover);
+                backPack.AddToContainer(item2, leftover);
         }
     }
 

@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System;
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -43,6 +45,8 @@ namespace InventoryModule
 
             InventoryManager.Register(this);
         }
+
+       
 
         private void OnValidate()
         {
@@ -107,7 +111,7 @@ namespace InventoryModule
                 Destroy(transform.GetChild(i).gameObject);
         }
 
-        public void AddSlots(int amount)
+        protected void AddSlots(int amount)
         {
 #if UNITY_EDITOR
             if (!Application.isPlaying)
@@ -139,14 +143,17 @@ namespace InventoryModule
             InventoryManager.RefreshContainer(this);
         }
 
-        public void AddAtIndex(int index)
+        public void AddAtIndex(Slot slotData,int index)
         {
-            inventoryList.AddAtIndex(index);
+            // 1. Insert the underlying slot data structure
+            inventoryList.AddAtIndex(slotData ,index);
 
+            // 2. Instantiate and visually place the physical UI element first
             GameObject slotObj = Instantiate(SlotPrefab, transform);
             slotObj.transform.SetSiblingIndex(index);
             slotObj.name = $"Slot_{index}";
 
+            // 3. Now refresh the container so the manager binds the exact indices perfectly
             InventoryManager.RefreshContainer(this);
         }
 
@@ -154,13 +161,17 @@ namespace InventoryModule
 
         public Slot GetSlot(int index)
         {
-            Debug.Log(inventoryList[index]);
             return inventoryList[index];
         }
 
         public void RegistingSatus(bool status)
         {
             IsRegistered = status;
+        }
+
+        public void OnDestroy()
+        {
+            inventoryList.OnSlotsAdd -= AddSlots;
         }
     }
 }

@@ -18,6 +18,8 @@ namespace InventoryModule
         public event Action<int> OnSlotsAdd;
         public event Action<int> OnSlotsRemoved;
 
+        public event Action      onSlotsUpdated;
+
         public Slot this[int index] => Slots[index];
 
         public bool IsFull
@@ -97,14 +99,14 @@ namespace InventoryModule
 
            
         }
-        public void AddAtIndex(int index)
+        public void AddAtIndex(Slot slotdata,int index)
         {
             // Ensure we don't exceed max size if defined
             if (MaxSize != -1 && Slots.Count >= MaxSize) return;
 
-            Slots.Insert(index, new Slot());
+            Slots.Insert(index, new Slot(slotdata.Item,slotdata.Amount));
+            onSlotsUpdated?.Invoke();
         }
-
 
         private int DynamicAdd(ItemSO item, int remaining, int slotsNeeded)
         {
@@ -117,12 +119,10 @@ namespace InventoryModule
                 int toAdd = Mathf.Min(remaining, item.MaxAmount);
                 newSlot.Init(item, toAdd);
                 remaining -= toAdd;
-                Debug.Log(Count);
 
                 // Bug fixed, null ref due to event again. 
                 // NOTE: Dont add Fire event before adding. It tells the wrong Index.
                 Slots.Add(newSlot);
-                Debug.Log($"OnSlotsAdd subscriber count: {OnSlotsAdd?.GetInvocationList().Length ?? 0}");
             }
 
             return remaining;
