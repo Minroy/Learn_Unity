@@ -10,8 +10,10 @@ namespace InventoryModule
     // rule 4. If dynamice grab the index of the slot you hovered over and add to that index. 
     public static class InventoryResolver
     {
-        public static void Resovle(Slot source, Slot Destination, DragContext ctx, bool shiftHeld)
+        public static void ResolveAdd(Slot source, Slot Destination, DragContext ctx)
         {
+
+            Debug.Log("shift held " + ctx.IsKeyHeldDown);
 
             if (Destination.IsEmpty)
             {
@@ -19,41 +21,45 @@ namespace InventoryModule
                 Destination.StackOrSwap(source);
                 return;
             }
-           
 
-            if (shiftHeld == false)
+            if(ctx.destinationContainer == ctx.SourceContainer)
             {
-                //Rule 1;
-                if (source == Destination)
+                Destination.StackOrSwap(source);
+                return;
+            }
+
+            if (ctx.destinationContainer.IsFull)
+            {
+                Debug.Log("Full");
+                Destination.StackOrSwap(source);
+                return;
+            }
+
+
+            if (!ctx.IsKeyHeldDown)
+            {
+                Destination.StackOrSwap(source);
+            }
+            else // we know that the keyneeded for Input.
+            {
+
+                if (ctx.destinationContainer.HasEmptySlots)
                 {
-                    Destination.StackOrSwap(source);
-                    Debug.Log("Same");
+                    ctx.destinationContainer.AddToContainer(source.Item,source.Amount);
                     return;
                 }
 
-                //
                 if (ctx.destinationContainer.IsFixedSize)
                 {
                     Destination.StackOrSwap(source);
-                    Debug.Log("fixed");
                     return;
                 }
-
-                if (ctx.destinationContainer.IsFull)
-                {
-                    Debug.Log("Full");
-                    Destination.StackOrSwap(source);
-                    return;
-                }
-            }
-            else // we know that He the keyneeded for Input.
-            {
-                if(ctx.destinationContainer)
-
-                if (source == Destination)
+                // the source container is the same as destinationContainer
+                // just add.
+                if (ctx.SourceContainer == ctx.destinationContainer)
                 {
                     Destination.StackOrSwap(source);
-                    Debug.Log("Same");
+                    Debug.Log("Same Container");
                     return;
                 }
 

@@ -37,6 +37,22 @@ namespace InventoryModule
         public bool IsFull => inventoryList != null && inventoryList.IsFull;
         public bool IsRegistered { get; private set; }
 
+        public bool HasEmptySlots
+        {
+            get
+            {
+                foreach (var slots in inventoryList)
+                {
+                    if (slots.IsEmpty)
+                    {
+                        return true;
+                    }
+                }
+
+                return false; 
+            }
+        }
+
         public virtual void Awake()
         {
             IsRegistered = false;

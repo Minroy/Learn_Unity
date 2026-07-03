@@ -29,6 +29,11 @@ public class PlayerInventory : MonoBehaviour
             if (leftover > 0)
                 backPack.AddToContainer(item2, leftover);
         }
+
+       if (Input.GetMouseButton(1))
+        {
+            PrintHoveredSlot();
+        }
     }
 
     private void PrintHoveredSlot()

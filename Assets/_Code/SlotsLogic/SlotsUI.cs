@@ -111,6 +111,7 @@ namespace InventoryModule
             panel.color = clickedColor;
             HoveredSlot = slot;
             HoveredSlotIndex = transform.GetSiblingIndex();
+
         }
 
         public void OnBeginDrag(PointerEventData eventData)
@@ -144,7 +145,8 @@ namespace InventoryModule
             DragInfo.TargetIndex = transform.GetSiblingIndex();
             DragInfo.DestinationSlot = slot;
 
-            InventoryResolver.Resovle(DraggedSlot, slot, DragInfo, true);
+            DragInfo.IsKeyHeldDown = Input.GetKey(KeyCode.LeftShift);
+            InventoryResolver.ResolveAdd(DraggedSlot, slot, DragInfo);
            
 
         }

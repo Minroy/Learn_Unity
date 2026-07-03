@@ -42,7 +42,8 @@ namespace InventoryModule
         public int SourceIndex;
         public int TargetIndex;
 
-        public Slot DestinationSlot
-            ;
+        public Slot DestinationSlot;
+
+        public bool IsKeyHeldDown;
     }
 }
