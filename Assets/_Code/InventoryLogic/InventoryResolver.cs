@@ -40,26 +40,28 @@ namespace InventoryModule
             // 3. Target has empty slots -> Fill them up
             if (ctx.destinationContainer.HasEmptySlots)
             {
-                // FIX: Capture the remainder that didn't fit, and update the source slot!
+                //Capture the remainder that didn't fit, and update the source slot!
                 int remaining = ctx.destinationContainer.AddToContainer(source.Item, source.Amount);
                 source.SetAmount(remaining);
             }
-            // 4. Target is Fixed Size (No empty slots available) -> Regular Swap/Stack
+            // 4. Target is Fixed Size and No empty slots available -> Regular Swap/Stack
             else if (ctx.destinationContainer.IsFixedSize)
             {
                 destination.StackOrSwap(source);
             }
-            // 5. Target is Dynamic (No empty slots available) -> Insert and Shift Right
+            // 5. Target is Dynamic No empty slots available -> Insert and Shift Right
             else if (!ctx.destinationContainer.IsFixedSize)
             {
                 ctx.destinationContainer.AddAtIndex(source, ctx.TargetIndex);
                 source.Clear();
             }
 
+
             // Always run your layout pruning at the end of modifications
             ctx.SourceContainer.PruneEmptySlots();
             ctx.destinationContainer.PruneEmptySlots();
         }
+
         public static void ResolveRemoval(Slot source, Slot Destination, DragContext ctx)
         {
 

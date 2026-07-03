@@ -15,10 +15,7 @@ namespace InventoryModule
         public int MinSize { get; private set; }
         public int Count => Slots.Count;
 
-        public event Action<int> OnSlotsAdd;
-        public event Action<int> OnSlotsRemoved;
-
-        public event Action onSlotsUpdated;
+       
 
         public Slot this[int index] => Slots[index];
 
@@ -34,6 +31,10 @@ namespace InventoryModule
                 return true;
             }
         }
+
+        public event Action<int> OnSlotsAdd;
+        public event Action<int> OnSlotsRemoved;
+        public event Action onSlotsUpdated;
 
         public InventoryList(bool isFixedSize, int startSize, int maxSize = -1)
         {
@@ -108,19 +109,7 @@ namespace InventoryModule
             onSlotsUpdated?.Invoke();
         }
 
-        public void RemoveAtIndex(int index)
-        {
-            if (index < 0 || index >= Slots.Count) return;
-            OnSlotsRemoved?.Invoke(index);
-            Slots.RemoveAt(index);
-        }
 
-        public void RemoveAtIndex(ItemSO item,int amount, int index)
-        {
-            if (index < 0 || index >= Slots.Count) return;
-            OnSlotsRemoved?.Invoke(index);
-            Slots.RemoveAt(index);
-        }
 
         private int DynamicAdd(ItemSO item, int remaining, int slotsNeeded)
         {
@@ -142,6 +131,19 @@ namespace InventoryModule
             return remaining;
         }
 
+#region//------------------------------- Removing Logic ----------------------------------------------//
+        public void RemoveAtIndex(int index)
+        {
+            if (index < 0 || index >= Slots.Count) return;
+            OnSlotsRemoved?.Invoke(index);
+            Slots.RemoveAt(index);
+        }
+        public void RemoveAtIndex(ItemSO item, int amount, int index)
+        {
+            if (index < 0 || index >= Slots.Count) return;
+            OnSlotsRemoved?.Invoke(index);
+            Slots.RemoveAt(index);
+        }
 
         public virtual int TryRemove(ItemSO item, int amount)
         {
@@ -167,6 +169,7 @@ namespace InventoryModule
 
             return remaining;
         }
+#endregion
 
         public virtual void DebugInventory()
         {

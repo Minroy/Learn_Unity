@@ -1,4 +1,5 @@
 using JetBrains.Annotations;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace InventoryModule
@@ -6,6 +7,21 @@ namespace InventoryModule
     [DefaultExecutionOrder(-1000)]
     public static class InventoryManager
     {
+        private static List<IContainerIdentifier> ContainerIdentorier;
+        private static int AddIdentifier = 0;
+
+        // implemet a ID system for Containers.
+        public static void AddIdenfierToContainer()
+        {
+           
+        }
+
+        
+
+
+
+
+
         private static void BindSlots(ContainerBehaviour container)
         {
             if (!container.IsRegistered)
@@ -17,7 +33,7 @@ namespace InventoryModule
                 {
                     if (container.gameObject.transform.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
                     {
-                        slotUI.Bind(container,container.GetSlot(i));
+                        slotUI.Bind(container, container.GetSlot(i));
                     }
                 }
                 container.RegistingSatus(true);
@@ -65,7 +81,7 @@ namespace InventoryModule
             {
                 if (container.gameObject.transform.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
                 {
-                    slotUI.Bind(container,container.GetSlot(i));
+                    slotUI.Bind(container, container.GetSlot(i));
                 }
             }
 
@@ -117,5 +133,37 @@ namespace InventoryModule
             }
             return remaining;
         }
+
+        /// <summary>
+        ///  Returns the currently hovereved Container
+        /// </summary>
+        public static ContainerBehaviour GetHoveredContainer()
+        {
+            return SlotsUI.HoveredContainer;
+        }
+        public static Slot GetHoveredSlot()
+        {
+            return SlotsUI.HoveredSlot;
+        }
+        public static int GetHoverContainer()
+        {
+            return SlotsUI.HoveredSlotIndex;
+        }
+
+        public static void GetHoveredInfo(out ContainerBehaviour Hoveredcontainer, out Slot HoveredSlot )
+        {
+            Hoveredcontainer = SlotsUI.HoveredContainer;
+            HoveredSlot = SlotsUI.HoveredSlot;
+        }
+        public static void GetHoveredInfo(out ContainerBehaviour Hoveredcontainer, out Slot HoveredSlot, out int HoveredIndex)
+        {
+            Hoveredcontainer = SlotsUI.HoveredContainer;
+            HoveredSlot = SlotsUI.HoveredSlot;
+            HoveredIndex = SlotsUI.HoveredSlotIndex;
+
+        }
+
     }
+    public interface IContainerIdentifier { };
+
 }

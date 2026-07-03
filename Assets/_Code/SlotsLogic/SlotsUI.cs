@@ -1,5 +1,6 @@
 using System.Collections;
 using TMPro;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -10,7 +11,7 @@ namespace InventoryModule
                                           IBeginDragHandler, IDragHandler, IDropHandler, IEndDragHandler
     {
 
-        private ContainerBehaviour SourceContainer; // the Parent container this slotUI belongs too
+        private ContainerBehaviour sourceContainer; // the Parent container this slotUI belongs too
         [SerializeField] private Image panel;
         [SerializeField] private Image icon;
         [SerializeField] private TextMeshProUGUI amountText;
@@ -21,10 +22,12 @@ namespace InventoryModule
         [SerializeField] private Image DraggedIcon;
 
         public static DragContext DragInfo;
-        public static int HoveredSlotIndex { get; private set; }
-        public static Slot HoveredSlot { get; private set; }
-        public static Slot DraggedSlot { get; private set; } // this is the traget slot. 
 
+        
+        public static int HoveredSlotIndex { get; private set; } // This gets this index of the slot its hovered over.
+        public static Slot HoveredSlot { get; private set; } // this gets the Slot your mouse is hooverOver;
+        public static Slot DraggedSlot { get; private set; } // this is the source slot.
+        public static ContainerBehaviour HoveredContainer { get; private set;  }
 
         private Slot slot;
 
@@ -51,7 +54,7 @@ namespace InventoryModule
             }
 
             // 2. Always assign the container and the incoming slot data
-            SourceContainer = container;
+            sourceContainer = container;
             slot = newSlot;
 
             // 3. Guard against the backend data being null before subscribing
@@ -90,6 +93,7 @@ namespace InventoryModule
             panel.color = defaultColor;
             HoveredSlot = slot;
             HoveredSlotIndex = transform.GetSiblingIndex();
+            HoveredContainer = sourceContainer;
         }
         public void OnPointerExit(PointerEventData eventData)
         {
@@ -97,6 +101,7 @@ namespace InventoryModule
             panel.color = defaultColor;
             HoveredSlot = null;
             HoveredSlotIndex = -1;
+            HoveredContainer = null;
         }
         private IEnumerator FlashClick()
         {
@@ -111,6 +116,7 @@ namespace InventoryModule
             panel.color = clickedColor;
             HoveredSlot = slot;
             HoveredSlotIndex = transform.GetSiblingIndex();
+            HoveredContainer = sourceContainer;
 
         }
 
@@ -123,7 +129,7 @@ namespace InventoryModule
 
             DragInfo = new DragContext()
             {
-                SourceContainer = this.SourceContainer,
+                SourceContainer = this.sourceContainer,
                 SourceIndex = transform.GetSiblingIndex()
             };
 

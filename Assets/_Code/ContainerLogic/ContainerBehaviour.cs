@@ -6,6 +6,7 @@ using System;
 
 
 
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -13,7 +14,7 @@ using UnityEditor;
 namespace InventoryModule
 {
     [RequireComponent(typeof(GridLayoutGroup))]
-    public class ContainerBehaviour : MonoBehaviour
+    public class ContainerBehaviour : MonoBehaviour , IContainerIdentifier
     {
 
         //Hook up logic.to this later, ignore events for now.
@@ -61,10 +62,15 @@ namespace InventoryModule
         {
             IsRegistered = false;
             inventoryList = GenerateList(isFixedSize, StartSize);
+
+
             inventoryList.OnSlotsAdd += AddSlots;
+            inventoryList.OnSlotsRemoved += RemoveSlots;
 
             InventoryManager.Register(this);
         }
+
+
 
         private void OnValidate()
         {
@@ -117,13 +123,19 @@ namespace InventoryModule
             InventoryManager.RefreshContainer(this);
         }
 
+
+
+
         /// <summary>
         /// Locate and Find emptySlots and destroy them
         /// </summary>
-        /// 
+
         /// Bug Satus
         /// Bug 1 : Index was provided out of range.
-        /// Solution was, Waiting until destroy has Finished doing it stuff. 
+        /// Solution was, Waiting until destroy has Finished doing it stuff. and executing it next frame. 
+        /// Problem duting the Unity Cycle. When trying to call register. It got a cached transform.Values.
+        /// resulting in register getting a null ref at the index. cuase destroy didnt update transform. 
+
         /// Bug 2 : Item Naming is messed up. 
         /// solution : not found.
 
@@ -162,13 +174,29 @@ namespace InventoryModule
         }
 
 
-
-        public async void RemoveSlotAtIndex()
+        /// <summary>
+        /// Removes A slot at at index
+        /// </summary>
+        /// <param name="index"></param>
+        public virtual async void RemoveSlotAtIndex(int index)
         {
+            if (index < 0 || index >= inventoryList.Count) return;
 
+            Debug.Log("calling remove");
+            inventoryList.RemoveAtIndex(index);
+
+            await UniTask.Yield();
+            if (this != null)
+                InventoryManager.RefreshContainer(this);
         }
 
-        // ---------------- ACCESS ----------------
+        private void RemoveSlots(int index)
+        {
+
+            Destroy(transform.GetChild(index).gameObject);
+        }
+
+        // ---------------- ACCESS INFO ----------------//
 
         public Slot GetSlot(int index)
         {
@@ -183,6 +211,7 @@ namespace InventoryModule
         public void OnDestroy()
         {
             inventoryList.OnSlotsAdd -= AddSlots;
+            inventoryList.OnSlotsRemoved -= RemoveSlots;
         }
 
 
@@ -240,8 +269,7 @@ namespace InventoryModule
                 slotObj.name = $"Slot_{currentCount + i}";
             }
 
-            // FIX: Pull the Refresh call completely OUT of the loop!
-            // Doing it inside the loop forced it to clear and re-bind everything 
+
             InventoryManager.RefreshContainer(this);
         }
         #endregion

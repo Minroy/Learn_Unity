@@ -1,5 +1,5 @@
-using UnityEngine;
 using InventoryModule;
+using UnityEngine;
 
 public class PlayerInventory : MonoBehaviour
 {
@@ -30,11 +30,19 @@ public class PlayerInventory : MonoBehaviour
                 backPack.AddToContainer(item2, leftover);
         }
 
-       if (Input.GetMouseButton(1))
+        if (Input.GetMouseButton(1))
         {
-            PrintHoveredSlot();
+            RemoveTestIndex();
         }
     }
+
+
+    private void RemoveTestIndex()
+    {
+        
+
+    }
+
 
     private void PrintHoveredSlot()
     {
