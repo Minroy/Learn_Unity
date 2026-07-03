@@ -1,6 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
+using Cysharp.Threading.Tasks;
 using System;
+
+
+
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -49,7 +53,7 @@ namespace InventoryModule
                     }
                 }
 
-                return false; 
+                return false;
             }
         }
 
@@ -62,10 +66,9 @@ namespace InventoryModule
             InventoryManager.Register(this);
         }
 
-       
-
         private void OnValidate()
         {
+            if (StartSize < 0) Debug.LogWarning("StartSize cannot be a negative number");
             if (SlotPrefab == null)
                 return;
 
@@ -97,9 +100,94 @@ namespace InventoryModule
             return inventoryList.TryRemove(itemType, amount);
         }
 
-        // ---------------- SLOT GENERATION ----------------
 
-        [ContextMenu("Generate Slots")]
+
+        public async void AddAtIndex(Slot slotData, int index)
+        {
+            // 1. Insert the underlying slot data structure
+            inventoryList.AddAtIndex(slotData, index);
+
+            // 2. Instantiate and visually place the physical UI element first
+            GameObject slotObj = Instantiate(SlotPrefab, transform);
+            slotObj.transform.SetSiblingIndex(index);
+            slotObj.name = $"Slot_{index}";
+
+            await UniTask.Yield();
+            // 3. Now refresh the container so the manager binds the exact indices perfectly
+            InventoryManager.RefreshContainer(this);
+        }
+
+        /// <summary>
+        /// Locate and Find emptySlots and destroy them
+        /// </summary>
+        /// 
+        /// Bug Satus
+        /// Bug 1 : Index was provided out of range.
+        /// Solution was, Waiting until destroy has Finished doing it stuff. 
+        /// Bug 2 : Item Naming is messed up. 
+        /// solution : not found.
+
+        public async void PruneEmptySlots()
+        {
+            try
+            {
+                if (isFixedSize) return;
+
+                bool changed = false;
+                for (int i = transform.childCount - 1; i >= 0; i--)
+                {
+                    if (i >= inventoryList.Count) continue;
+
+                    Slot slot = inventoryList[i];
+                    if (slot.IsEmpty && inventoryList.MinSize < inventoryList.Count)
+                    {
+                        inventoryList.RemoveAtIndex(i);
+                        Destroy(transform.GetChild(i).gameObject);
+                        changed = true;
+                    }
+                }
+
+                if (changed)
+                {
+                    // Wait for Unity to finish destroying the physical slot transforms 
+                    await UniTask.Yield();
+                    if (this != null)
+                        InventoryManager.RefreshContainer(this);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+        }
+
+
+
+        public async void RemoveSlotAtIndex()
+        {
+
+        }
+
+        // ---------------- ACCESS ----------------
+
+        public Slot GetSlot(int index)
+        {
+            return inventoryList[index];
+        }
+
+        public void RegistingSatus(bool status)
+        {
+            IsRegistered = status;
+        }
+
+        public void OnDestroy()
+        {
+            inventoryList.OnSlotsAdd -= AddSlots;
+        }
+
+
+        #region       // ---------------- SLOT GENERATION During Editor ----------------//
+
         public void GenerateSlots(int amount)
         {
             RemoveSlots();
@@ -154,40 +242,8 @@ namespace InventoryModule
 
             // FIX: Pull the Refresh call completely OUT of the loop!
             // Doing it inside the loop forced it to clear and re-bind everything 
-            // multiple times for a single addition event (O(N^2) complexity). 
-            // Now it executes exactly once after the batch instantiation is complete.
             InventoryManager.RefreshContainer(this);
         }
-
-        public void AddAtIndex(Slot slotData,int index)
-        {
-            // 1. Insert the underlying slot data structure
-            inventoryList.AddAtIndex(slotData ,index);
-
-            // 2. Instantiate and visually place the physical UI element first
-            GameObject slotObj = Instantiate(SlotPrefab, transform);
-            slotObj.transform.SetSiblingIndex(index);
-            slotObj.name = $"Slot_{index}";
-
-            // 3. Now refresh the container so the manager binds the exact indices perfectly
-            InventoryManager.RefreshContainer(this);
-        }
-
-        // ---------------- ACCESS ----------------
-
-        public Slot GetSlot(int index)
-        {
-            return inventoryList[index];
-        }
-
-        public void RegistingSatus(bool status)
-        {
-            IsRegistered = status;
-        }
-
-        public void OnDestroy()
-        {
-            inventoryList.OnSlotsAdd -= AddSlots;
-        }
+        #endregion
     }
 }

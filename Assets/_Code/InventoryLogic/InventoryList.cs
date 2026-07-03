@@ -18,7 +18,7 @@ namespace InventoryModule
         public event Action<int> OnSlotsAdd;
         public event Action<int> OnSlotsRemoved;
 
-        public event Action      onSlotsUpdated;
+        public event Action onSlotsUpdated;
 
         public Slot this[int index] => Slots[index];
 
@@ -97,15 +97,29 @@ namespace InventoryModule
 
             return remaining;
 
-           
+
         }
-        public void AddAtIndex(Slot slotdata,int index)
+        public void AddAtIndex(Slot slotdata, int index)
         {
             // Ensure we don't exceed max size if defined
             if (MaxSize != -1 && Slots.Count >= MaxSize) return;
 
-            Slots.Insert(index, new Slot(slotdata.Item,slotdata.Amount));
+            Slots.Insert(index, new Slot(slotdata.Item, slotdata.Amount));
             onSlotsUpdated?.Invoke();
+        }
+
+        public void RemoveAtIndex(int index)
+        {
+            if (index < 0 || index >= Slots.Count) return;
+            OnSlotsRemoved?.Invoke(index);
+            Slots.RemoveAt(index);
+        }
+
+        public void RemoveAtIndex(ItemSO item,int amount, int index)
+        {
+            if (index < 0 || index >= Slots.Count) return;
+            OnSlotsRemoved?.Invoke(index);
+            Slots.RemoveAt(index);
         }
 
         private int DynamicAdd(ItemSO item, int remaining, int slotsNeeded)
