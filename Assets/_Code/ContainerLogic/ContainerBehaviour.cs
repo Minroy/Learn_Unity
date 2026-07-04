@@ -14,9 +14,10 @@ using UnityEditor;
 namespace InventoryModule
 {
     [RequireComponent(typeof(GridLayoutGroup))]
-    public class ContainerBehaviour : MonoBehaviour , IContainerIdentifier
+    public class ContainerBehaviour : MonoBehaviour, IContainerIdentifier
     {
 
+        //TODO Medium
         //Hook up logic.to this later, ignore events for now.
 
         ////public event Action OnContainerOpened;
@@ -107,7 +108,8 @@ namespace InventoryModule
         }
 
 
-
+        //Bug : Naming Issue
+        // TODO : Fix Later. // LOW
         public async void AddAtIndex(Slot slotData, int index)
         {
             // 1. Insert the underlying slot data structure
@@ -116,7 +118,7 @@ namespace InventoryModule
             // 2. Instantiate and visually place the physical UI element first
             GameObject slotObj = Instantiate(SlotPrefab, transform);
             slotObj.transform.SetSiblingIndex(index);
-            slotObj.name = $"Slot_{index}";
+            slotObj.name = $"Slot_{index}s";
 
             await UniTask.Yield();
             // 3. Now refresh the container so the manager binds the exact indices perfectly
@@ -136,8 +138,8 @@ namespace InventoryModule
         /// Problem duting the Unity Cycle. When trying to call register. It got a cached transform.Values.
         /// resulting in register getting a null ref at the index. cuase destroy didnt update transform. 
 
-        /// Bug 2 : Item Naming is messed up. 
-        /// solution : not found.
+        /// Bug 2 : Item Naming is messed up in herieacy is messed up.
+        // TODO FIX // LOW
 
         public async void PruneEmptySlots()
         {
@@ -180,7 +182,7 @@ namespace InventoryModule
         /// <param name="index"></param>
         public virtual async void RemoveSlotAtIndex(int index)
         {
-            if (index < 0 || index >= inventoryList.Count) return;
+            if (index < 0 || index > inventoryList.Count) return;
 
             Debug.Log("calling remove");
             inventoryList.RemoveAtIndex(index);
@@ -190,13 +192,25 @@ namespace InventoryModule
                 InventoryManager.RefreshContainer(this);
         }
 
+        public virtual async void RemoveAmountAtIndex(int amountToRemove ,int index)
+        {
+            if (index < 0 || index > inventoryList.Count) return;
+
+            Debug.Log("calling remove");
+            inventoryList.RemoveAmountIndex(amountToRemove,index);
+
+            await UniTask.Yield();
+            if (this != null)
+                InventoryManager.RefreshContainer(this);
+        }
+
         private void RemoveSlots(int index)
         {
-
             Destroy(transform.GetChild(index).gameObject);
         }
 
-        // ---------------- ACCESS INFO ----------------//
+
+        #region        // ---------------- GET ACCESS INFO ----------------//
 
         public Slot GetSlot(int index)
         {
@@ -213,6 +227,8 @@ namespace InventoryModule
             inventoryList.OnSlotsAdd -= AddSlots;
             inventoryList.OnSlotsRemoved -= RemoveSlots;
         }
+        #endregion
+
 
 
         #region       // ---------------- SLOT GENERATION During Editor ----------------//
@@ -223,7 +239,7 @@ namespace InventoryModule
             AddSlots(amount);
         }
 
-        public void RemoveSlots()
+        private void RemoveSlots()
         {
 #if UNITY_EDITOR
             if (!Application.isPlaying)

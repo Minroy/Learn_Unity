@@ -30,7 +30,7 @@ public class PlayerInventory : MonoBehaviour
                 backPack.AddToContainer(item2, leftover);
         }
 
-        if (Input.GetMouseButton(1))
+        if (Input.GetMouseButtonDown(1))
         {
             RemoveTestIndex();
         }
@@ -39,7 +39,10 @@ public class PlayerInventory : MonoBehaviour
 
     private void RemoveTestIndex()
     {
-        
+
+        InventoryManager.GetHoveredInfo(out var Cont, out var hoveredSlot, out var hoveredindex);
+
+        Cont.RemoveAmountAtIndex(10, hoveredindex);
 
     }
 

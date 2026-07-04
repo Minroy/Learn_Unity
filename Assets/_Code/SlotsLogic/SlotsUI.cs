@@ -23,7 +23,12 @@ namespace InventoryModule
 
         public static DragContext DragInfo;
 
-        
+
+
+
+
+
+
         public static int HoveredSlotIndex { get; private set; } // This gets this index of the slot its hovered over.
         public static Slot HoveredSlot { get; private set; } // this gets the Slot your mouse is hooverOver;
         public static Slot DraggedSlot { get; private set; } // this is the source slot.
@@ -153,6 +158,7 @@ namespace InventoryModule
 
             DragInfo.IsKeyHeldDown = Input.GetKey(KeyCode.LeftShift);
             InventoryResolver.ResolveAdd(DraggedSlot, slot, DragInfo);
+            DragIcon.Instance.Hide();
            
 
         }

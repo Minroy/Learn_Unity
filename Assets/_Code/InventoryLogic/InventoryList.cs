@@ -10,12 +10,12 @@ namespace InventoryModule
         private readonly List<Slot> Slots;
         private ContainerBehaviour ContainerRef = null;
 
-        public bool IsFixedSize { get; private set; }
+        public bool IsDynamic { get; private set; }
         public int MaxSize { get; private set; }
         public int MinSize { get; private set; }
         public int Count => Slots.Count;
 
-       
+
 
         public Slot this[int index] => Slots[index];
 
@@ -36,23 +36,23 @@ namespace InventoryModule
         public event Action<int> OnSlotsRemoved;
         public event Action onSlotsUpdated;
 
-        public InventoryList(bool isFixedSize, int startSize, int maxSize = -1)
+        public InventoryList(bool isdynamic, int startSize, int maxSize = -1)
         {
-            IsFixedSize = isFixedSize;
+            IsDynamic = isdynamic;
             MinSize = startSize;
-            MaxSize = isFixedSize ? maxSize : -1;
+            MaxSize = isdynamic ? maxSize : -1;
 
             Slots = new List<Slot>(startSize);
             for (int i = 0; i < startSize; i++)
                 Slots.Add(new Slot());
         }
 
-        public InventoryList(bool isFixedSize, int startSize, ContainerBehaviour container, int maxSize = -1)
+        public InventoryList(bool isDynamic, int startSize, ContainerBehaviour container, int maxSize = -1)
         {
             ContainerRef = container;
-            IsFixedSize = isFixedSize;
+            IsDynamic = isDynamic;
             MinSize = startSize;
-            MaxSize = isFixedSize ? maxSize : -1;
+            MaxSize = isDynamic ? maxSize : -1;
 
             Slots = new List<Slot>(startSize);
             for (int i = 0; i < startSize; i++)
@@ -85,7 +85,7 @@ namespace InventoryModule
             }
 
             // Pass 3: If there is no empty slots, and inventory is dynamic Add new slots and fill them.
-            if (remaining > 0 && !IsFixedSize)
+            if (remaining > 0 && !IsDynamic)
             {
                 int slotsNeeded = Mathf.CeilToInt((float)remaining / item.MaxAmount); // check how many Slots you need
 
@@ -93,7 +93,7 @@ namespace InventoryModule
                 OnSlotsAdd?.Invoke(slotsNeeded); // fire event to notify how many slots should be made.
             }
 
-            if (remaining > 0 && IsFixedSize)
+            if (remaining > 0 && IsDynamic)
                 Debug.Log($"{nameof(InventoryList)}: Full. {remaining} {item.displayName} couldn't be added.");
 
             return remaining;
@@ -131,20 +131,43 @@ namespace InventoryModule
             return remaining;
         }
 
-#region//------------------------------- Removing Logic ----------------------------------------------//
+        #region//------------------------------- Removing Logic ----------------------------------------------//
+
+        /// <summary>
+        /// This removes the Slot regardless it its dynamic or not (Aka deletes Slot)
+        /// </summary>
+        /// <param name="index"></param>
         public void RemoveAtIndex(int index)
         {
             if (index < 0 || index >= Slots.Count) return;
             OnSlotsRemoved?.Invoke(index);
             Slots.RemoveAt(index);
         }
-        public void RemoveAtIndex(ItemSO item, int amount, int index)
+
+        /// <summary>
+        /// This removes the Amount at a Slot. If dynamic it will delete it
+        /// </summary>
+        /// <param name="amountToRemove"></param>
+        /// <param name="index"></param>
+        public void RemoveAmountIndex(int amountToRemove, int index)
         {
-            if (index < 0 || index >= Slots.Count) return;
-            OnSlotsRemoved?.Invoke(index);
-            Slots.RemoveAt(index);
+            if (index < 0 || index >= Slots.Count || amountToRemove < 0) return;
+
+            Slot slot = Slots[index];
+            int toRemove = Mathf.Min(amountToRemove, slot.Amount);
+            amountToRemove = slot.SlotRemove(toRemove);
+
+
+            if (Slots[index].IsEmpty && !IsDynamic)
+            {
+                RemoveAtIndex(index);
+            }
         }
 
+        /// <summary>
+        /// Finds and Remove the first Slot it finds the Item. (Removes Form backwards)
+        /// </summary>
+        /// <returns></returns>
         public virtual int TryRemove(ItemSO item, int amount)
         {
             int remaining = amount;
@@ -157,11 +180,9 @@ namespace InventoryModule
                 int toRemove = Mathf.Min(remaining, slot.Amount);
                 remaining = slot.SlotRemove(toRemove);
 
-                if (slot.IsEmpty && !IsFixedSize && (MinSize < this.Count))
+                if (slot.IsEmpty && !IsDynamic && (MinSize < this.Count)) // if the Iventory is dynamic, remove the slots
                 {
-                    // Bugged Fixed. Null event and Index being empty. 
-                    OnSlotsRemoved?.Invoke(i);
-                    Slots.RemoveAt(i);
+                    RemoveAtIndex(i);
                 }
 
                 if (remaining <= 0) break;
@@ -169,7 +190,7 @@ namespace InventoryModule
 
             return remaining;
         }
-#endregion
+        #endregion
 
         public virtual void DebugInventory()
         {
@@ -185,7 +206,7 @@ namespace InventoryModule
         /// </summary>
         public void SetFixedSize(bool fixedSizeState)
         {
-            IsFixedSize = fixedSizeState;
+            IsDynamic = fixedSizeState;
         }
     }
 }

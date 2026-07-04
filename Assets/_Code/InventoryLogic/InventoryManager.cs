@@ -1,3 +1,4 @@
+using Cysharp.Threading.Tasks;
 using JetBrains.Annotations;
 using System.Collections.Generic;
 using UnityEngine;
@@ -10,13 +11,14 @@ namespace InventoryModule
         private static List<IContainerIdentifier> ContainerIdentorier;
         private static int AddIdentifier = 0;
 
+        // TODO Low-Medium
         // implemet a ID system for Containers.
         public static void AddIdenfierToContainer()
         {
-           
+
         }
 
-        
+
 
 
 
@@ -63,7 +65,7 @@ namespace InventoryModule
         /// Wipes all current UI bindings and fully re-maps them to the backend data indexes.
         /// Essential for dynamic containers when elements shift or expand mid-array.
         /// </summary>
-        public static void RefreshContainer(ContainerBehaviour container)
+        public static async void RefreshContainer(ContainerBehaviour container)
         {
             if (container == null) return;
 
@@ -75,6 +77,9 @@ namespace InventoryModule
                 if (container.gameObject.transform.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
                     slotUI.UnBind();
             }
+
+            await UniTask.Yield();
+
 
             // 2. Freshly bind every UI slot to its exact, current data index
             for (int i = 0; i < childCount; i++)
@@ -150,20 +155,21 @@ namespace InventoryModule
             return SlotsUI.HoveredSlotIndex;
         }
 
-        public static void GetHoveredInfo(out ContainerBehaviour Hoveredcontainer, out Slot HoveredSlot )
+        public static void GetHoveredInfo(out ContainerBehaviour Hoveredcontainer, out Slot HoveredSlot)
         {
             Hoveredcontainer = SlotsUI.HoveredContainer;
             HoveredSlot = SlotsUI.HoveredSlot;
         }
         public static void GetHoveredInfo(out ContainerBehaviour Hoveredcontainer, out Slot HoveredSlot, out int HoveredIndex)
         {
-            Hoveredcontainer = SlotsUI.HoveredContainer;
-            HoveredSlot = SlotsUI.HoveredSlot;
-            HoveredIndex = SlotsUI.HoveredSlotIndex;
-
+                Hoveredcontainer = SlotsUI.HoveredContainer;
+                HoveredSlot = SlotsUI.HoveredSlot;
+                HoveredIndex = SlotsUI.HoveredSlotIndex;
         }
 
     }
+
+
     public interface IContainerIdentifier { };
 
 }
