@@ -10,7 +10,7 @@ namespace InventoryModule
         private readonly List<Slot> Slots;
         private ContainerBehaviour ContainerRef = null;
 
-        public bool IsDynamic { get; private set; }
+        public bool isDynamic { get; private set; }
         public int MaxSize { get; private set; }
         public int MinSize { get; private set; }
         public int Count => Slots.Count;
@@ -36,11 +36,11 @@ namespace InventoryModule
         public event Action<int> OnSlotsRemoved;
         public event Action onSlotsUpdated;
 
-        public InventoryList(bool isdynamic, int startSize, int maxSize = -1)
+        public InventoryList(bool isDynamic, int startSize, int maxSize = -1)
         {
-            IsDynamic = isdynamic;
+            this.isDynamic = isDynamic;
             MinSize = startSize;
-            MaxSize = isdynamic ? maxSize : -1;
+            MaxSize = isDynamic ? maxSize : -1;
 
             Slots = new List<Slot>(startSize);
             for (int i = 0; i < startSize; i++)
@@ -50,7 +50,7 @@ namespace InventoryModule
         public InventoryList(bool isDynamic, int startSize, ContainerBehaviour container, int maxSize = -1)
         {
             ContainerRef = container;
-            IsDynamic = isDynamic;
+            this.isDynamic = isDynamic;
             MinSize = startSize;
             MaxSize = isDynamic ? maxSize : -1;
 
@@ -85,7 +85,7 @@ namespace InventoryModule
             }
 
             // Pass 3: If there is no empty slots, and inventory is dynamic Add new slots and fill them.
-            if (remaining > 0 && !IsDynamic)
+            if (remaining > 0 && isDynamic)
             {
                 int slotsNeeded = Mathf.CeilToInt((float)remaining / item.MaxAmount); // check how many Slots you need
 
@@ -93,7 +93,7 @@ namespace InventoryModule
                 OnSlotsAdd?.Invoke(slotsNeeded); // fire event to notify how many slots should be made.
             }
 
-            if (remaining > 0 && IsDynamic)
+            if (remaining > 0 && !isDynamic)
                 Debug.Log($"{nameof(InventoryList)}: Full. {remaining} {item.displayName} couldn't be added.");
 
             return remaining;
@@ -131,6 +131,11 @@ namespace InventoryModule
             return remaining;
         }
 
+
+
+
+
+
         #region//------------------------------- Removing Logic ----------------------------------------------//
 
         /// <summary>
@@ -143,6 +148,10 @@ namespace InventoryModule
             OnSlotsRemoved?.Invoke(index);
             Slots.RemoveAt(index);
         }
+
+
+
+
 
         /// <summary>
         /// This removes the Amount at a Slot. If dynamic it will delete it
@@ -158,11 +167,12 @@ namespace InventoryModule
             amountToRemove = slot.SlotRemove(toRemove);
 
 
-            if (Slots[index].IsEmpty && !IsDynamic)
-            {
+            if (Slots[index].IsEmpty && isDynamic)
                 RemoveAtIndex(index);
-            }
         }
+
+
+
 
         /// <summary>
         /// Finds and Remove the first Slot it finds the Item. (Removes Form backwards)
@@ -180,10 +190,8 @@ namespace InventoryModule
                 int toRemove = Mathf.Min(remaining, slot.Amount);
                 remaining = slot.SlotRemove(toRemove);
 
-                if (slot.IsEmpty && !IsDynamic && (MinSize < this.Count)) // if the Iventory is dynamic, remove the slots
-                {
+                if (slot.IsEmpty && isDynamic && (MinSize < this.Count))
                     RemoveAtIndex(i);
-                }
 
                 if (remaining <= 0) break;
             }
@@ -192,11 +200,18 @@ namespace InventoryModule
         }
         #endregion
 
+
+
+
         public virtual void DebugInventory()
         {
             foreach (Slot slot in Slots)
                 Debug.Log(slot.IsEmpty ? "Empty" : $"{slot.Item.displayName} x{slot.Amount}");
         }
+
+
+
+
 
         public IEnumerator<Slot> GetEnumerator() => Slots.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -204,9 +219,9 @@ namespace InventoryModule
         /// <summary>
         /// Runtime only. Change whater the Inventory should be fixed or not.
         /// </summary>
-        public void SetFixedSize(bool fixedSizeState)
+        public void SetDynamic(bool isDynamic)
         {
-            IsDynamic = fixedSizeState;
+            this.isDynamic = isDynamic;
         }
     }
 }

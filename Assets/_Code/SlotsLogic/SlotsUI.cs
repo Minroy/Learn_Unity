@@ -21,18 +21,15 @@ namespace InventoryModule
 
         [SerializeField] private Image DraggedIcon;
 
-        public static DragContext DragInfo;
-
-
-
-
-
+        public static SlotContext DragInfo;
 
 
         public static int HoveredSlotIndex { get; private set; } // This gets this index of the slot its hovered over.
         public static Slot HoveredSlot { get; private set; } // this gets the Slot your mouse is hooverOver;
-        public static Slot DraggedSlot { get; private set; } // this is the source slot.
+        public static Slot SourceSlot { get; private set; } // this is the source slot.
         public static ContainerBehaviour HoveredContainer { get; private set;  }
+
+        public bool isdragging;
 
         private Slot slot;
 
@@ -41,7 +38,7 @@ namespace InventoryModule
         private static void ResetStatics()
         {
             HoveredSlot = null;
-            DraggedSlot = null;
+            SourceSlot = null;
             HoveredSlotIndex = -1;
             DragInfo = default;
         }
@@ -52,6 +49,7 @@ namespace InventoryModule
         /// <param name="newSlot"></param>
         public void Bind(ContainerBehaviour container,Slot newSlot)
         {
+            isdragging = false;
             // 1. Clean up the old slot subscription if it exists
             if (slot != null)
             {
@@ -91,22 +89,41 @@ namespace InventoryModule
             amountText.text = hasItem ? slot.Amount.ToString() : "";
         }
 
-        public void OnPointerClick(PointerEventData eventData) => StartCoroutine(FlashClick());
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            // handle quick swapping here
+            if (Input.GetKey(KeyCode.LeftShift) && !isdragging)
+            {
+                DragInfo.destinationContainer = null;
+                DragInfo.TargetIndex = -1;
+                DragInfo.SourceContainer = HoveredContainer;
+                SourceSlot = slot;
+                InventoryResolver.ResolveQuickSwapping(SourceSlot, DragInfo);
+            }
+
+
+            StartCoroutine(FlashClick());
+        }
         public void OnPointerEnter(PointerEventData eventData)
         {
+           
             panel.enabled = true;
             panel.color = defaultColor;
             HoveredSlot = slot;
             HoveredSlotIndex = transform.GetSiblingIndex();
             HoveredContainer = sourceContainer;
+
+
         }
         public void OnPointerExit(PointerEventData eventData)
         {
+
             panel.enabled = false;
             panel.color = defaultColor;
             HoveredSlot = null;
             HoveredSlotIndex = -1;
             HoveredContainer = null;
+
         }
         private IEnumerator FlashClick()
         {
@@ -130,12 +147,13 @@ namespace InventoryModule
             if (slot.IsEmpty)
                 return;
 
-            DraggedSlot = slot;
+            SourceSlot = slot;
 
-            DragInfo = new DragContext()
+            DragInfo = new SlotContext()
             {
                 SourceContainer = this.sourceContainer,
-                SourceIndex = transform.GetSiblingIndex()
+                SourceIndex = transform.GetSiblingIndex(),
+                IsKeyHeldDown = Input.GetKey(KeyCode.LeftShift)
             };
 
 
@@ -149,7 +167,7 @@ namespace InventoryModule
 
         public void OnDrop(PointerEventData eventData)
         {
-            if (DraggedSlot == null || DraggedSlot == slot)
+            if (SourceSlot == null || SourceSlot == slot)
                 return;
 
             DragInfo.destinationContainer = transform.GetComponentInParent<ContainerBehaviour>();
@@ -157,10 +175,8 @@ namespace InventoryModule
             DragInfo.DestinationSlot = slot;
 
             DragInfo.IsKeyHeldDown = Input.GetKey(KeyCode.LeftShift);
-            InventoryResolver.ResolveAdd(DraggedSlot, slot, DragInfo);
+            InventoryResolver.ResolveAdd(SourceSlot, slot, DragInfo);
             DragIcon.Instance.Hide();
-           
-
         }
 
 
@@ -168,7 +184,7 @@ namespace InventoryModule
         public void OnEndDrag(PointerEventData eventData)
         {
             DragIcon.Instance.Hide();
-            DraggedSlot = null;
+            SourceSlot = null;
             HoveredSlotIndex = -1;
         }
     }

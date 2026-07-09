@@ -14,7 +14,7 @@ using UnityEditor;
 namespace InventoryModule
 {
     [RequireComponent(typeof(GridLayoutGroup))]
-    public class ContainerBehaviour : MonoBehaviour, IContainerIdentifier
+    public class ContainerBehaviour : ContainerModule
     {
 
         //TODO Medium
@@ -32,13 +32,13 @@ namespace InventoryModule
 
 
         [Header("Inventory Settings")]
-        [SerializeField] protected InventoryList inventoryList;
+        protected InventoryList inventoryList;
         [SerializeField] protected GameObject SlotPrefab;
         [SerializeField] protected int StartSize = 1;
-        [SerializeField] protected bool isFixedSize;
+        [SerializeField] protected bool isDynamic;
 
 
-        public bool IsFixedSize => isFixedSize;
+        public bool IsDynamic => isDynamic;
         public InventoryList ContainerList => inventoryList;
         public bool IsFull => inventoryList != null && inventoryList.IsFull;
         public bool IsRegistered { get; private set; }
@@ -59,18 +59,36 @@ namespace InventoryModule
             }
         }
 
-        public virtual void Awake()
+
+
+        public void Awake()
         {
             IsRegistered = false;
-            inventoryList = GenerateList(isFixedSize, StartSize);
 
+            if (inventoryList == null)
+            {
+                inventoryList = GenerateList(isDynamic, StartSize);
+            }
+
+            inventoryList.SetDynamic(isDynamic);
 
             inventoryList.OnSlotsAdd += AddSlots;
             inventoryList.OnSlotsRemoved += RemoveSlots;
 
             InventoryManager.Register(this);
+
+            OnActivated();
         }
 
+
+
+        /// <summary>
+        /// Fires once the Container is Done registering and setting up. (Fired by Awake)
+        /// </summary>
+        protected virtual void OnActivated()
+        {
+
+        }
 
 
         private void OnValidate()
@@ -79,7 +97,7 @@ namespace InventoryModule
             if (SlotPrefab == null)
                 return;
 
-            inventoryList ??= GenerateList(isFixedSize, StartSize);
+            inventoryList ??= GenerateList(isDynamic, StartSize);
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
@@ -92,9 +110,10 @@ namespace InventoryModule
 #endif
         }
 
-        public virtual InventoryList GenerateList(bool isFixedSize, int startSize, int maxSize = -1)
+        public virtual InventoryList GenerateList(bool isDynamic, int startSize, int maxSize = -1)
         {
-            return new InventoryList(isFixedSize, startSize, maxSize);
+            
+            return new InventoryList(isDynamic, startSize, maxSize);
         }
 
         public virtual int AddToContainer(ItemSO itemType, int amount)
@@ -145,7 +164,7 @@ namespace InventoryModule
         {
             try
             {
-                if (isFixedSize) return;
+                if (!isDynamic) return; // only dynamic containers shrink
 
                 bool changed = false;
                 for (int i = transform.childCount - 1; i >= 0; i--)
@@ -192,12 +211,12 @@ namespace InventoryModule
                 InventoryManager.RefreshContainer(this);
         }
 
-        public virtual async void RemoveAmountAtIndex(int amountToRemove ,int index)
+        public virtual async void RemoveAmountAtIndex(int amountToRemove, int index)
         {
             if (index < 0 || index > inventoryList.Count) return;
 
             Debug.Log("calling remove");
-            inventoryList.RemoveAmountIndex(amountToRemove,index);
+            inventoryList.RemoveAmountIndex(amountToRemove, index);
 
             await UniTask.Yield();
             if (this != null)
@@ -251,7 +270,7 @@ namespace InventoryModule
 #endif
 
             // Runtime: Only dynamic containers can change size
-            if (isFixedSize) return;
+            if (!isDynamic) return; // only dynamic containers shrink
 
             // FIX: Safely unbind from the manager BEFORE killing the UI components
             InventoryManager.UnRegister(this);
@@ -275,7 +294,7 @@ namespace InventoryModule
             }
 #endif
 
-            if (isFixedSize) return;
+            if (!isDynamic) return; // only dynamic containers grow
 
             // 1. Bulk-spawn all the new physical layouts first
             int currentCount = transform.childCount;
@@ -288,6 +307,20 @@ namespace InventoryModule
 
             InventoryManager.RefreshContainer(this);
         }
+
+        #endregion
+
+
+        #region Container TransferHandler
+
+        public ContainerBehaviour QuickTransferTo { get; private set; }
+
+
+        public void SetTransferTo(ContainerBehaviour containerToTransfer)
+        {
+            QuickTransferTo = containerToTransfer;
+        }
+
         #endregion
     }
 }

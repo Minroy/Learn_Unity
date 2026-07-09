@@ -34,7 +34,7 @@ namespace InventoryModule
 
     }
 
-    public struct DragContext
+    public struct SlotContext
     {
         public ContainerBehaviour destinationContainer; // the container you are Moving into
         public ContainerBehaviour SourceContainer; // the container you Reside in; 
@@ -43,7 +43,6 @@ namespace InventoryModule
         public int TargetIndex;
 
         public Slot DestinationSlot;
-
         public bool IsKeyHeldDown;
     }
 }

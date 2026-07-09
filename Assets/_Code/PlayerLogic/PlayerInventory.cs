@@ -13,6 +13,7 @@ public class PlayerInventory : MonoBehaviour
 
     private void Awake()
     {
+        
     }
 
     public void Update()
@@ -21,13 +22,17 @@ public class PlayerInventory : MonoBehaviour
         {
             int leftover = hotBarContainer.AddToContainer(item, amountToAdd * 10);
             if (leftover > 0)
+            {
                 backPack.AddToContainer(item, leftover);
+            }
         }
         if (Input.GetKeyDown(KeyCode.Alpha2))
         {
             int leftover = hotBarContainer.AddToContainer(item2, amountToAdd * 5);
             if (leftover > 0)
+            {
                 backPack.AddToContainer(item2, leftover);
+            }
         }
 
         if (Input.GetMouseButtonDown(1))
