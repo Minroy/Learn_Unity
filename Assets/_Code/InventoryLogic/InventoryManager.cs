@@ -7,9 +7,15 @@ using UnityEngine;
 namespace InventoryModule
 {
     [DefaultExecutionOrder(-1000)]
-    public static class InventoryManager
+    public class InventoryManager : MonoBehaviour
     {
-        ////private static List<IContainerIdentifier> ContainerIdentorier;
+        // the canvas where the inventoryLogic will work. 
+        public Canvas MainCanvas;
+
+        // this is gonna be used for Displaying the contains in a container. 
+        public ContainerBehaviour DisplayerContainer; //Make a special CLass for this
+
+
         private static int AddIdentifier = 0;
 
         public static List<IContainerIdentifier> Containers = new();

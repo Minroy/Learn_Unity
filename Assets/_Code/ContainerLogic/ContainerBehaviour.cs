@@ -1,11 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
-using Cysharp.Threading.Tasks;
 using System;
-
-
-
-
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -31,12 +26,13 @@ namespace InventoryModule
         ////public event Action OnContainerFull;
 
 
+
+
         [Header("Inventory Settings")]
         protected InventoryList inventoryList;
         [SerializeField] protected GameObject SlotPrefab;
         [SerializeField] protected int StartSize = 1;
         [SerializeField] protected bool isDynamic;
-
 
         public bool IsDynamic => isDynamic;
         public InventoryList ContainerList => inventoryList;
@@ -50,25 +46,18 @@ namespace InventoryModule
                 foreach (var slots in inventoryList)
                 {
                     if (slots.IsEmpty)
-                    {
                         return true;
-                    }
                 }
-
                 return false;
             }
         }
-
-
 
         public void Awake()
         {
             IsRegistered = false;
 
             if (inventoryList == null)
-            {
                 inventoryList = GenerateList(isDynamic, StartSize);
-            }
 
             inventoryList.SetDynamic(isDynamic);
 
@@ -80,16 +69,10 @@ namespace InventoryModule
             OnActivated();
         }
 
-
-
         /// <summary>
         /// Fires once the Container is Done registering and setting up. (Fired by Awake)
         /// </summary>
-        protected virtual void OnActivated()
-        {
-
-        }
-
+        protected virtual void OnActivated() { }
 
         private void OnValidate()
         {
@@ -112,7 +95,6 @@ namespace InventoryModule
 
         public virtual InventoryList GenerateList(bool isDynamic, int startSize, int maxSize = -1)
         {
-            
             return new InventoryList(isDynamic, startSize, maxSize);
         }
 
@@ -126,47 +108,40 @@ namespace InventoryModule
             return inventoryList.TryRemove(itemType, amount);
         }
 
+        // ---------------- Structural ops, now routed through the queue ----------------
 
-        //Bug : Naming Issue
-        // TODO : Fix Later. // LOW
-        public async void AddAtIndex(Slot slotData, int index)
+        public void AddAtIndex(Slot slotData, int index)
         {
-            // 1. Insert the underlying slot data structure
-            inventoryList.AddAtIndex(slotData, index);
+            EnqueueContainer(async () =>
+            {
+                inventoryList.AddAtIndex(slotData, index);
 
-            // 2. Instantiate and visually place the physical UI element first
-            GameObject slotObj = Instantiate(SlotPrefab, transform);
-            slotObj.transform.SetSiblingIndex(index);
-            slotObj.name = $"Slot_{index}s";
+                GameObject slotObj = Instantiate(SlotPrefab, transform);
+                slotObj.transform.SetSiblingIndex(index);
+                slotObj.name = $"Slot_{index}";
 
-            await UniTask.Yield();
-            // 3. Now refresh the container so the manager binds the exact indices perfectly
-            InventoryManager.RefreshContainer(this);
+                await Awaitable.NextFrameAsync();
+
+                if (this != null)
+                    InventoryManager.RefreshContainer(this); // scoped: only shifted slots need rebinding
+            });
         }
-
-
-
 
         /// <summary>
         /// Locate and Find emptySlots and destroy them
         /// </summary>
+        /// 
 
-        /// Bug Satus
-        /// Bug 1 : Index was provided out of range.
-        /// Solution was, Waiting until destroy has Finished doing it stuff. and executing it next frame. 
-        /// Problem duting the Unity Cycle. When trying to call register. It got a cached transform.Values.
-        /// resulting in register getting a null ref at the index. cuase destroy didnt update transform. 
 
-        /// Bug 2 : Item Naming is messed up in herieacy is messed up.
-        // TODO FIX // LOW
-
-        public async void PruneEmptySlots()
+        public void PruneEmptySlots()
         {
-            try
+            EnqueueContainer(async () =>
             {
-                if (!isDynamic) return; // only dynamic containers shrink
+                if (!isDynamic) return;
 
                 bool changed = false;
+                int lowestRemoved = int.MaxValue;
+
                 for (int i = transform.childCount - 1; i >= 0; i--)
                 {
                     if (i >= inventoryList.Count) continue;
@@ -177,50 +152,45 @@ namespace InventoryModule
                         inventoryList.RemoveAtIndex(i);
                         Destroy(transform.GetChild(i).gameObject);
                         changed = true;
+                        lowestRemoved = Mathf.Min(lowestRemoved, i);
                     }
                 }
 
                 if (changed)
                 {
-                    // Wait for Unity to finish destroying the physical slot transforms 
-                    await UniTask.Yield();
+                    await Awaitable.NextFrameAsync();
                     if (this != null)
                         InventoryManager.RefreshContainer(this);
                 }
-            }
-            catch (Exception e)
+            });
+        }
+
+        public void RemoveSlotAtIndex(int index)
+        {
+            EnqueueContainer(async () =>
             {
-                Debug.LogException(e);
-            }
+                if (index < 0 || index >= inventoryList.Count) return;
+
+                inventoryList.RemoveAtIndex(index);
+
+                await Awaitable.NextFrameAsync();
+                if (this != null)
+                    InventoryManager.RefreshContainer(this);
+            });
         }
 
-
-        /// <summary>
-        /// Removes A slot at at index
-        /// </summary>
-        /// <param name="index"></param>
-        public virtual async void RemoveSlotAtIndex(int index)
+        public void RemoveAmountAtIndex(int amountToRemove, int index)
         {
-            if (index < 0 || index > inventoryList.Count) return;
+            EnqueueContainer(async () =>
+            {
+                if (index < 0 || index >= inventoryList.Count) return;
 
-            Debug.Log("calling remove");
-            inventoryList.RemoveAtIndex(index);
+                inventoryList.RemoveAmountIndex(amountToRemove, index);
 
-            await UniTask.Yield();
-            if (this != null)
-                InventoryManager.RefreshContainer(this);
-        }
-
-        public virtual async void RemoveAmountAtIndex(int amountToRemove, int index)
-        {
-            if (index < 0 || index > inventoryList.Count) return;
-
-            Debug.Log("calling remove");
-            inventoryList.RemoveAmountIndex(amountToRemove, index);
-
-            await UniTask.Yield();
-            if (this != null)
-                InventoryManager.RefreshContainer(this);
+                await Awaitable.NextFrameAsync();
+                if (this != null)
+                    InventoryManager.RefreshContainer(this);
+            });
         }
 
         private void RemoveSlots(int index)
@@ -228,13 +198,9 @@ namespace InventoryModule
             Destroy(transform.GetChild(index).gameObject);
         }
 
+        #region GET ACCESS INFO
 
-        #region        // ---------------- GET ACCESS INFO ----------------//
-
-        public Slot GetSlot(int index)
-        {
-            return inventoryList[index];
-        }
+        public Slot GetSlot(int index) => inventoryList[index];
 
         public void RegistingSatus(bool status)
         {
@@ -248,9 +214,7 @@ namespace InventoryModule
         }
         #endregion
 
-
-
-        #region       // ---------------- SLOT GENERATION During Editor ----------------//
+        #region SLOT GENERATION During Editor
 
         public void GenerateSlots(int amount)
         {
@@ -268,11 +232,8 @@ namespace InventoryModule
                 return;
             }
 #endif
+            if (!isDynamic) return;
 
-            // Runtime: Only dynamic containers can change size
-            if (!isDynamic) return; // only dynamic containers shrink
-
-            // FIX: Safely unbind from the manager BEFORE killing the UI components
             InventoryManager.UnRegister(this);
 
             for (int i = transform.childCount - 1; i >= 0; i--)
@@ -293,28 +254,28 @@ namespace InventoryModule
                 return;
             }
 #endif
+            if (!isDynamic) return;
 
-            if (!isDynamic) return; // only dynamic containers grow
-
-            // 1. Bulk-spawn all the new physical layouts first
-            int currentCount = transform.childCount;
-            for (int i = 0; i < amount; i++)
+            EnqueueContainer(async () =>
             {
-                GameObject slotObj = Instantiate(SlotPrefab, transform);
-                slotObj.name = $"Slot_{currentCount + i}";
-            }
+                int currentCount = transform.childCount;
+                for (int i = 0; i < amount; i++)
+                {
+                    GameObject slotObj = Instantiate(SlotPrefab, transform);
+                    slotObj.name = $"Slot_{currentCount + i}";
+                }
 
-
-            InventoryManager.RefreshContainer(this);
+                await Awaitable.NextFrameAsync();
+                if (this != null)
+                    InventoryManager.RefreshContainer(this); // only the newly added slots need binding
+            });
         }
 
         #endregion
 
-
         #region Container TransferHandler
 
         public ContainerBehaviour QuickTransferTo { get; private set; }
-
 
         public void SetTransferTo(ContainerBehaviour containerToTransfer)
         {
