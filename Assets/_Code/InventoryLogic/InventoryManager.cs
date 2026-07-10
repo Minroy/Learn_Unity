@@ -1,4 +1,3 @@
-using Cysharp.Threading.Tasks;
 using InventoryModule.Iterfaces;
 using JetBrains.Annotations;
 using System.Collections.Generic;
@@ -9,6 +8,9 @@ namespace InventoryModule
     [DefaultExecutionOrder(-1000)]
     public class InventoryManager : MonoBehaviour
     {
+        // Thread-safe Singleton Instance for your developers
+        public static InventoryManager Instance { get; private set; }
+
         // the canvas where the inventoryLogic will work. 
         public Canvas MainCanvas;
 
@@ -26,6 +28,16 @@ namespace InventoryModule
 
         }
 
+        private void Awake()
+        {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
 
         #region   RESGISTERING SLOTS
         private static void BindSlots(ContainerBehaviour container)
@@ -69,6 +81,32 @@ namespace InventoryModule
         }
 
         /// <summary>
+        /// OPTIMIZED INCREMENTAL BIND: Binds just one newly added slot instantly without looping the whole container.
+        /// </summary>
+        public static void BindSingleSlot(ContainerBehaviour container, int index)
+        {
+            if (index < 0 || index >= container.gameObject.transform.childCount) return;
+
+            if (container.gameObject.transform.GetChild(index).TryGetComponent<SlotsUI>(out var slotUI))
+            {
+                slotUI.Bind(container, container.GetSlot(index));
+            }
+        }
+
+        /// <summary>
+        /// OPTIMIZED INCREMENTAL UNBIND: UnBinds just one newly removed slot instantly without looping the whole container.
+        /// </summary>
+        public static void UnBindSingleSlot(ContainerBehaviour container, int index)
+        {
+            if (index < 0 || index >= container.gameObject.transform.childCount) return;
+
+            if (container.gameObject.transform.GetChild(index).TryGetComponent<SlotsUI>(out var slotUI))
+            {
+                slotUI.UnBind();
+            }
+        }
+
+        /// <summary>
         /// Wipes all current UI bindings and fully re-maps them to the backend data indexes.
         /// Essential for dynamic containers when elements shift or expand mid-array.
         /// </summary>
@@ -85,7 +123,8 @@ namespace InventoryModule
                     slotUI.UnBind();
             }
 
-            await UniTask.Yield();
+            // Using Unity 6 native Awaitable instead of UniTask.Yield
+            await Awaitable.NextFrameAsync();
 
 
             // 2. Freshly bind every UI slot to its exact, current data index
@@ -181,9 +220,5 @@ namespace InventoryModule
         }
 
         #endregion
-
-
-
     }
-
 }

@@ -39,6 +39,7 @@ namespace InventoryModule
         public bool IsFull => inventoryList != null && inventoryList.IsFull;
         public bool IsRegistered { get; private set; }
 
+        //TODO: Fix caching problem. LOW.
         public bool HasEmptySlots
         {
             get
@@ -52,6 +53,9 @@ namespace InventoryModule
             }
         }
 
+
+        #region OnSpawnedExecutions methods
+
         public void Awake()
         {
             IsRegistered = false;
@@ -59,20 +63,24 @@ namespace InventoryModule
             if (inventoryList == null)
                 inventoryList = GenerateList(isDynamic, StartSize);
 
-            inventoryList.SetDynamic(isDynamic);
-
             inventoryList.OnSlotsAdd += AddSlots;
-            inventoryList.OnSlotsRemoved += RemoveSlots;
+            inventoryList.OnSlotsRemoved += RemoveSlot;
 
             InventoryManager.Register(this);
 
             OnActivated();
         }
 
+
+
+
         /// <summary>
         /// Fires once the Container is Done registering and setting up. (Fired by Awake)
         /// </summary>
         protected virtual void OnActivated() { }
+
+        #endregion
+
 
         private void OnValidate()
         {
@@ -93,20 +101,33 @@ namespace InventoryModule
 #endif
         }
 
+
+
+        /// <summary>
+        /// Generates a inventoryList. (one time thing)
+        /// </summary>
+        /// <returns></returns>
         public virtual InventoryList GenerateList(bool isDynamic, int startSize, int maxSize = -1)
         {
             return new InventoryList(isDynamic, startSize, maxSize);
         }
+
+
 
         public virtual int AddToContainer(ItemSO itemType, int amount)
         {
             return inventoryList.TryAdd(itemType, amount);
         }
 
+
+
+
         public virtual int RemoveForContainer(ItemSO itemType, int amount)
         {
             return inventoryList.TryRemove(itemType, amount);
         }
+
+
 
         // ---------------- Structural ops, now routed through the queue ----------------
 
@@ -123,16 +144,25 @@ namespace InventoryModule
                 await Awaitable.NextFrameAsync();
 
                 if (this != null)
-                    InventoryManager.RefreshContainer(this); // scoped: only shifted slots need rebinding
+                {
+                    // Everything from the shifted index down to the new end needs to be rebound
+                    int childCount = transform.childCount;
+                    for (int i = index; i < childCount; i++)
+                    {
+                        transform.GetChild(i).name = $"Slot_{i}";
+                        InventoryManager.BindSingleSlot(this, i);
+                    }
+                }
             });
         }
+
+
+
+        #region Removale Logic
 
         /// <summary>
         /// Locate and Find emptySlots and destroy them
         /// </summary>
-        /// 
-
-
         public void PruneEmptySlots()
         {
             EnqueueContainer(async () =>
@@ -140,7 +170,7 @@ namespace InventoryModule
                 if (!isDynamic) return;
 
                 bool changed = false;
-                int lowestRemoved = int.MaxValue;
+                int lowestRemovedIndex = int.MaxValue;
 
                 for (int i = transform.childCount - 1; i >= 0; i--)
                 {
@@ -149,10 +179,14 @@ namespace InventoryModule
                     Slot slot = inventoryList[i];
                     if (slot.IsEmpty && inventoryList.MinSize < inventoryList.Count)
                     {
+                        // Unbind immediately before destroying to prevent dangling reference issues
+                        InventoryManager.UnBindSingleSlot(this, i);
+
                         inventoryList.RemoveAtIndex(i);
                         Destroy(transform.GetChild(i).gameObject);
+
                         changed = true;
-                        lowestRemoved = Mathf.Min(lowestRemoved, i);
+                        lowestRemovedIndex = Mathf.Min(lowestRemovedIndex, i);
                     }
                 }
 
@@ -160,25 +194,52 @@ namespace InventoryModule
                 {
                     await Awaitable.NextFrameAsync();
                     if (this != null)
-                        InventoryManager.RefreshContainer(this);
+                    {
+                        // Only rebind the elements that shifted upwards from the lowest deleted point
+                        int childCount = transform.childCount;
+                        for (int i = lowestRemovedIndex; i < childCount; i++)
+                        {
+                            transform.GetChild(i).name = $"Slot_{i}";
+                            InventoryManager.BindSingleSlot(this, i);
+                        }
+                    }
                 }
             });
         }
 
+        /// <summary>
+        /// Removes a Slot at index
+        /// </summary>
+        /// <param name="index"></param>
         public void RemoveSlotAtIndex(int index)
         {
             EnqueueContainer(async () =>
             {
                 if (index < 0 || index >= inventoryList.Count) return;
 
+                InventoryManager.UnBindSingleSlot(this, index);
                 inventoryList.RemoveAtIndex(index);
+                Destroy(transform.GetChild(index).gameObject);
 
                 await Awaitable.NextFrameAsync();
                 if (this != null)
-                    InventoryManager.RefreshContainer(this);
+                {
+                    // Rebind shifted remaining slots from the removed position down
+                    int childCount = transform.childCount;
+                    for (int i = index; i < childCount; i++)
+                    {
+                        transform.GetChild(i).name = $"Slot_{i}";
+                        InventoryManager.BindSingleSlot(this, i);
+                    }
+                }
             });
         }
 
+        /// <summary>
+        /// Removes a set amount at the slot. clears if its empty.
+        /// </summary>
+        /// <param name="amountToRemove"></param>
+        /// <param name="index"></param>
         public void RemoveAmountAtIndex(int amountToRemove, int index)
         {
             EnqueueContainer(async () =>
@@ -189,14 +250,22 @@ namespace InventoryModule
 
                 await Awaitable.NextFrameAsync();
                 if (this != null)
-                    InventoryManager.RefreshContainer(this);
+                {
+                    // Quantity changes don't alter indices or child hierarchies, just rebind the target slot
+                    InventoryManager.BindSingleSlot(this, index);
+                }
             });
         }
 
-        private void RemoveSlots(int index)
+        private void RemoveSlot(int index)
         {
             Destroy(transform.GetChild(index).gameObject);
         }
+        #endregion
+
+
+
+
 
         #region GET ACCESS INFO
 
@@ -210,9 +279,13 @@ namespace InventoryModule
         public void OnDestroy()
         {
             inventoryList.OnSlotsAdd -= AddSlots;
-            inventoryList.OnSlotsRemoved -= RemoveSlots;
+            inventoryList.OnSlotsRemoved -= RemoveSlot;
         }
         #endregion
+
+
+
+
 
         #region SLOT GENERATION During Editor
 
@@ -267,11 +340,22 @@ namespace InventoryModule
 
                 await Awaitable.NextFrameAsync();
                 if (this != null)
-                    InventoryManager.RefreshContainer(this); // only the newly added slots need binding
+                {
+                    // Bind only the newly created tail elements
+                    int finalCount = transform.childCount;
+                    for (int i = currentCount; i < finalCount; i++)
+                    {
+                        InventoryManager.BindSingleSlot(this, i);
+                    }
+                }
             });
         }
 
         #endregion
+
+
+
+
 
         #region Container TransferHandler
 
