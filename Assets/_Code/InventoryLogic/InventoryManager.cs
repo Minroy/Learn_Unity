@@ -248,7 +248,7 @@ namespace InventoryModule
         /// </summary>
         /// <param name="methodName"> The name to call it by</param>
         /// <param name="Executable"> the method to execute </param>
-        public static void RegisterMethods(string methodName, System.Delegate executable)
+        public static void Register(string methodName, System.Delegate executable)
         {
             Methods[methodName] = executable;
         }

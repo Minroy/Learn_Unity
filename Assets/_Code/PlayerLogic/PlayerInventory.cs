@@ -14,12 +14,14 @@ public class PlayerInventory : MonoBehaviour
 
     private void Awake()
     {
-        InventoryManager.RegisterMethods("RemoveAtIndex", (Action<int>)RemoveTestIndex); // here fixed
-        InventoryManager.RegisterMethods(nameof(Info), (Func<int, int>)Info); // here 
+        InventoryManager.Register("RemoveAtIndex", (Action<int>)RemoveTestIndex); // here fixed
+        InventoryManager.Register(nameof(Info), (Func<int, int>)Info); // here 
     }
 
     public void Update()
     {
+        
+
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
             int leftover = hotBarContainer.AddToContainer(item, amountToAdd * 10);

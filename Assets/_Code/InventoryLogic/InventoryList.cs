@@ -209,10 +209,6 @@ namespace InventoryModule
                 Debug.Log(slot.IsEmpty ? "Empty" : $"{slot.Item.displayName} x{slot.Amount}");
         }
 
-
-
-
-
         public IEnumerator<Slot> GetEnumerator() => Slots.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
