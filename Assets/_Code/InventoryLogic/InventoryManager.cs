@@ -37,7 +37,8 @@ namespace InventoryModule
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {
-            Methods = null;
+            Methods.Clear();
+            Containers.Clear();
         }
 
 
@@ -244,7 +245,6 @@ namespace InventoryModule
 
         /// <summary>
         /// register Custom Methods, that can be executed on a contiditions.
-        /// 
         /// </summary>
         /// <param name="methodName"> The name to call it by</param>
         /// <param name="Executable"> the method to execute </param>
