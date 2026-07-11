@@ -8,7 +8,7 @@ using UnityEngine;
 namespace InventoryModule
 {
     [DefaultExecutionOrder(-1000)]
-    public class InventoryManager : MonoBehaviour
+    public sealed class InventoryManager : MonoBehaviour
     {
         // Thread-safe Singleton Instance for your developers
         public static InventoryManager Instance { get; private set; }
@@ -33,6 +33,14 @@ namespace InventoryModule
         {
 
         }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            Methods = null;
+        }
+
+
 
         private void Awake()
         {
@@ -117,7 +125,6 @@ namespace InventoryModule
 
         /// <summary>
         /// Wipes all current UI bindings and fully re-maps them to the backend data indexes.
-        /// Essential for dynamic containers when elements shift or expand mid-array.
         /// </summary>
         public static async void RefreshContainer(ContainerBehaviour container)
         {
@@ -233,15 +240,15 @@ namespace InventoryModule
 
         #region Custom Method Executionar
 
-        public static Dictionary<string, System.Delegate> Methods = new Dictionary<string, System.Delegate>();
+        private static Dictionary<string, System.Delegate> Methods = new Dictionary<string, System.Delegate>();
 
         /// <summary>
         /// register Custom Methods, that can be executed on a contiditions.
+        /// 
         /// </summary>
         /// <param name="methodName"> The name to call it by</param>
         /// <param name="Executable"> the method to execute </param>
-        public static void Register<TDelegate>(string methodName, TDelegate executable)
-    where TDelegate : Delegate
+        public static void RegisterMethods(string methodName, System.Delegate executable)
         {
             Methods[methodName] = executable;
         }
@@ -251,7 +258,7 @@ namespace InventoryModule
         /// </summary>
         /// <param name="methodName"> The name to call it by</param>
         /// <param name="Executable"> the method to execute </param>
-        public static void UnRegister(string methodName)
+        public static void UnRegisterMethods(string methodName)
         {
             if (Methods.ContainsKey(methodName))
             {
@@ -303,7 +310,7 @@ namespace InventoryModule
         }
 
         /// <summary>
-        /// Executes a method, with parameters and returns a Void;
+        /// Executes a method, with parameters and returns a T;
         /// </summary>
         public static T ExecuteLogic<T>(string methodName)
         {
@@ -316,7 +323,7 @@ namespace InventoryModule
             }
             catch (TargetParameterCountException TP)
             {
-                Debug.LogError(TP + " Make sure the Paramters are inputed in order");
+                Debug.LogError(TP + " Make sure the Paramters are inputed in order or correct type.");
             }
             catch (Exception e)
             {
@@ -339,7 +346,7 @@ namespace InventoryModule
             }
             catch (TargetParameterCountException TP)
             {
-                Debug.LogError(TP + " Make sure the Paramters are inputed in order");
+                Debug.LogError(TP + " Make sure the Paramters are inputed in order or correct type.");
             }
             catch (Exception e)
             {

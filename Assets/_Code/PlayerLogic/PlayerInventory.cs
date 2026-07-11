@@ -1,4 +1,5 @@
 using InventoryModule;
+using System;
 using UnityEngine;
 
 public class PlayerInventory : MonoBehaviour
@@ -13,7 +14,8 @@ public class PlayerInventory : MonoBehaviour
 
     private void Awake()
     {
-        
+        InventoryManager.RegisterMethods("RemoveAtIndex", (Action<int>)RemoveTestIndex); // here fixed
+        InventoryManager.RegisterMethods(nameof(Info), (Func<int, int>)Info); // here 
     }
 
     public void Update()
@@ -37,15 +39,21 @@ public class PlayerInventory : MonoBehaviour
 
         if (Input.GetMouseButtonDown(1))
         {
-            
+            Debug.Log(Info(10) + " we added 10 to this slot");
         }
     }
 
 
-    private void RemoveTestIndex(int amount, int index, bool shouldRemove)
+    private void RemoveTestIndex(int amount)
     {
         InventoryManager.GetHoveredInfo(out var Cont, out var hoveredSlot, out var hoveredindex);
-        Cont.RemoveAmountAtIndex(10, hoveredindex);
+        Cont.RemoveAmountAtIndex(amount, hoveredindex);
+    }
+
+    private int Info(int amountToModify)
+    {
+        InventoryManager.GetHoveredInfo(out var _, out var hoveredSlot, out var hoveredindex);
+        return hoveredSlot.Amount + amountToModify;
     }
 
 
