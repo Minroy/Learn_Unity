@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using System;
 
+
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -60,14 +62,14 @@ namespace InventoryModule
         {
             IsRegistered = false;
 
-            if (inventoryList == null)
-                inventoryList = GenerateList(isDynamic, StartSize);
+            inventoryList ??= GenerateList(isDynamic, StartSize);
+
 
             inventoryList.OnSlotsAdd += AddSlots;
             inventoryList.OnSlotsRemoved += RemoveSlot;
 
-            InventoryManager.Register(this);
 
+            InventoryManager.Register(this);
             OnActivated();
         }
 
@@ -365,6 +367,15 @@ namespace InventoryModule
         {
             QuickTransferTo = containerToTransfer;
         }
+
+        #endregion
+
+
+
+        #region Custom Input Executor
+       
+
+
 
         #endregion
     }

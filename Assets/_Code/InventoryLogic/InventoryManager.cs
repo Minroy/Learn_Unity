@@ -1,6 +1,8 @@
 using InventoryModule.Iterfaces;
 using JetBrains.Annotations;
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace InventoryModule
@@ -10,6 +12,9 @@ namespace InventoryModule
     {
         // Thread-safe Singleton Instance for your developers
         public static InventoryManager Instance { get; private set; }
+
+        [SerializeField] private bool Dontdestroyonload;
+
 
         // the canvas where the inventoryLogic will work. 
         public Canvas MainCanvas;
@@ -37,7 +42,10 @@ namespace InventoryModule
                 return;
             }
             Instance = this;
-            DontDestroyOnLoad(gameObject);
+
+
+            if (Dontdestroyonload)
+                DontDestroyOnLoad(this);
         }
 
         #region   RESGISTERING SLOTS
@@ -218,6 +226,126 @@ namespace InventoryModule
             Hoveredcontainer = SlotsUI.HoveredContainer;
             HoveredSlot = SlotsUI.HoveredSlot;
             HoveredIndex = SlotsUI.HoveredSlotIndex;
+        }
+
+        #endregion
+
+
+        #region Custom Method Executionar
+
+        public static Dictionary<string, System.Delegate> Methods = new Dictionary<string, System.Delegate>();
+
+        /// <summary>
+        /// register Custom Methods, that can be executed on a contiditions.
+        /// </summary>
+        /// <param name="methodName"> The name to call it by</param>
+        /// <param name="Executable"> the method to execute </param>
+        public static void Register<TDelegate>(string methodName, TDelegate executable)
+    where TDelegate : Delegate
+        {
+            Methods[methodName] = executable;
+        }
+
+        /// <summary>
+        /// register Custom Methods, that can be executed on a contiditions.
+        /// </summary>
+        /// <param name="methodName"> The name to call it by</param>
+        /// <param name="Executable"> the method to execute </param>
+        public static void UnRegister(string methodName)
+        {
+            if (Methods.ContainsKey(methodName))
+            {
+                Methods.Remove(methodName);
+            }
+        }
+
+        /// <summary>
+        /// Executes a method, without parameters and returns a void.
+        /// </summary>
+        /// <param name="methodName"></param>
+        public static void ExecuteLogic(string methodName)
+        {
+            try
+            {
+                if (Methods.TryGetValue(methodName, out System.Delegate executable))
+                {
+                    executable.DynamicInvoke();
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+            }
+        }
+
+        /// <summary>
+        /// Executes a method, with parameters and returns a void.
+        /// </summary>
+        /// <param name="methodName"></param>
+        /// <param name="args"></param>
+        public static void ExecuteLogic(string methodName, params object[] args)
+        {
+            try
+            {
+                if (Methods.TryGetValue(methodName, out System.Delegate executable))
+                {
+                    executable.DynamicInvoke(args);
+                }
+            }
+            catch (TargetParameterCountException TP)
+            {
+                Debug.LogError(TP + " Make sure the Paramters are inputed in order");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+            }
+        }
+
+        /// <summary>
+        /// Executes a method, with parameters and returns a Void;
+        /// </summary>
+        public static T ExecuteLogic<T>(string methodName)
+        {
+            try
+            {
+                if (Methods.TryGetValue(methodName, out System.Delegate executable))
+                {
+                    return (T)executable.DynamicInvoke();
+                }
+            }
+            catch (TargetParameterCountException TP)
+            {
+                Debug.LogError(TP + " Make sure the Paramters are inputed in order");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+            }
+            return default;
+        }
+
+        /// <summary>
+        /// Executes a method, with parameters and returns a T;
+        /// </summary>
+        public static T ExecuteLogic<T>(string methodName, params object[] args)
+        {
+            try
+            {
+                if (Methods.TryGetValue(methodName, out System.Delegate executable))
+                {
+                    return (T)executable.DynamicInvoke(args);
+                }
+            }
+            catch (TargetParameterCountException TP)
+            {
+                Debug.LogError(TP + " Make sure the Paramters are inputed in order");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+            }
+            return default;
         }
 
         #endregion

@@ -52,6 +52,9 @@ namespace InventoryModule
 
 
 
+
+        
+
         public object Clone()
         {
             throw new NotImplementedException();

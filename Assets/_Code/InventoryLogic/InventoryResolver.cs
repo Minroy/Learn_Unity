@@ -1,4 +1,6 @@
-﻿namespace InventoryModule
+﻿using System;
+
+namespace InventoryModule
 {
     /// <summary>
     /// You shouldn't be Messing around with the Logic presented in here. Its Hard Coded Logic to handle the dynamicInventory. 
@@ -37,13 +39,13 @@
                 int remaining = ctx.destinationContainer.AddToContainer(source.Item, source.Amount);
                 source.SetAmount(remaining);
             }
-            // 4. if Traget is full, do regualarStackorswap. 
-            else if (ctx.destinationContainer.IsDynamic)
+            // 4. Target is Static (Not Dynamic) and full -> Fall back to a regular Stack/Swap
+            else if (!ctx.destinationContainer.IsDynamic)
             {
                 destination.StackOrSwap(source);
             }
-            // 5. Target is Dynamic No empty slots available -> Insert and Shift Right
-            else if (!ctx.destinationContainer.IsDynamic)
+            // 5. Target is Dynamic and has no empty slots available -> Insert new slot and Shift Right
+            else if (ctx.destinationContainer.IsDynamic)
             {
                 ctx.destinationContainer.AddAtIndex(source, ctx.TargetIndex);
                 source.Clear();
@@ -112,6 +114,8 @@
             ctx.SourceContainer.PruneEmptySlots();
             ctx.destinationContainer.PruneEmptySlots();
         }
+
+        
     }
 }
 

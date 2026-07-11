@@ -37,18 +37,15 @@ public class PlayerInventory : MonoBehaviour
 
         if (Input.GetMouseButtonDown(1))
         {
-            RemoveTestIndex();
+            
         }
     }
 
 
-    private void RemoveTestIndex()
+    private void RemoveTestIndex(int amount, int index, bool shouldRemove)
     {
-
         InventoryManager.GetHoveredInfo(out var Cont, out var hoveredSlot, out var hoveredindex);
-
         Cont.RemoveAmountAtIndex(10, hoveredindex);
-
     }
 
 
