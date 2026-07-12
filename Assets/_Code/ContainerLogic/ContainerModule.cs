@@ -7,16 +7,20 @@ namespace InventoryModule
 {
     public class ContainerModule : MonoBehaviour, IContainerIdentifier, IIgnoreContainer, ICloneable, ICurrentStatus
     {
+        [SerializeField] protected CanvasGroup ContainerCanvas;
+        private bool isDisplaying = false;  // Start hidden
+
+
+
+
         private readonly Queue<Func<Awaitable>> operationQueue = new();
         private bool isProcessingQueue;
 
-        /// <summary>
         /// <summary>
         /// Enqueues a structural operation.
         /// Operations run strictly one at a time, in order — an operation
         /// enqueued while another is mid-flight will not start until the
         /// current one has fully finished.
-        /// </summary>
         /// </summary>
         protected Awaitable EnqueueContainer(Func<Awaitable> operation)
         {
@@ -53,7 +57,33 @@ namespace InventoryModule
 
 
 
-        
+        public void Display()
+        {
+            if (!isDisplaying)
+            {
+                EnqueueContainer(async () =>
+                {
+                    ContainerCanvas.alpha = 1;
+                    ContainerCanvas.blocksRaycasts = true;
+                    isDisplaying = true;
+                    await Awaitable.NextFrameAsync();
+                });
+            }
+        }
+
+        public void Hide()
+        {
+            if (isDisplaying)
+            {
+                EnqueueContainer(async () =>
+                {
+                    ContainerCanvas.alpha = 0;
+                    ContainerCanvas.blocksRaycasts = false;
+                    isDisplaying = false;
+                    await Awaitable.NextFrameAsync();
+                });
+            }
+        }
 
         public object Clone()
         {
@@ -71,7 +101,7 @@ namespace InventoryModule
             throw new NotImplementedException();
         }
 
-        // check where you are OPen or not. 
+        // check whereter you are OPen or not. 
         public ContainerStatus GetContainerStatus()
         {
             throw new NotImplementedException();

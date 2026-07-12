@@ -10,7 +10,7 @@ using UnityEditor;
 
 namespace InventoryModule
 {
-    [RequireComponent(typeof(GridLayoutGroup))]
+    [RequireComponent(typeof(GridLayoutGroup), typeof(CanvasGroup))]
     public class ContainerBehaviour : ContainerModule
     {
 
@@ -64,15 +64,20 @@ namespace InventoryModule
 
             inventoryList ??= GenerateList(isDynamic, StartSize);
 
-
             inventoryList.OnSlotsAdd += AddSlots;
             inventoryList.OnSlotsRemoved += RemoveSlot;
-
-
             InventoryManager.Register(this);
+
+            
+            ContainerCanvas = GetComponent<CanvasGroup>();
             OnActivated();
         }
 
+        public void Start()
+        {
+            ContainerCanvas.alpha = 0;
+            ContainerCanvas.blocksRaycasts = false;
+        }
 
 
 
@@ -297,6 +302,7 @@ namespace InventoryModule
             AddSlots(amount);
         }
 
+        //remove slots form the Gameobject
         private void RemoveSlots()
         {
 #if UNITY_EDITOR
@@ -315,6 +321,8 @@ namespace InventoryModule
                 Destroy(transform.GetChild(i).gameObject);
         }
 
+
+        //Adds slots to the Gameobjects
         protected void AddSlots(int amount)
         {
 #if UNITY_EDITOR
@@ -357,8 +365,6 @@ namespace InventoryModule
 
 
 
-
-
         #region Container TransferHandler
 
         public ContainerBehaviour QuickTransferTo { get; private set; }
@@ -367,15 +373,6 @@ namespace InventoryModule
         {
             QuickTransferTo = containerToTransfer;
         }
-
-        #endregion
-
-
-
-        #region Custom Input Executor
-       
-
-
 
         #endregion
     }

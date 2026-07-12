@@ -207,7 +207,7 @@ MonoBehaviour:
   coloredReference: 0
   coloredNodeBorder: 1
   preferredDisplayValue: 0
-  enableMinimap: 1
+  enableMinimap: 0
   minimapOpacity: 0.6
   minimapViewportColor: {r: 1, g: 1, b: 0, a: 0.35}
   minimapSelectedNodeColor: {r: 1, g: 1, b: 1, a: 0.5}
@@ -218,7 +218,6 @@ MonoBehaviour:
     y: 0
     width: 100
     height: 90
-  breakpointColor: {r: 1, g: 0, b: 0, a: 1}
   nodeSuccessColor: {r: 0, g: 1, b: 0, a: 1}
   nodeFailureColor: {r: 1, g: 0, b: 0, a: 1}
   nodeRunningColor: {r: 0, g: 0, b: 1, a: 1}

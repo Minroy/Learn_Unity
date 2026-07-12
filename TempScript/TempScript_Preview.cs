@@ -1,30 +1,40 @@
-///--------------------------------------------///
-///-----MADE WITH: UNODE VISUAL SCRIPTING-----///
-///------------------------------------------///
 #pragma warning disable
-using UnityEngine;
+using InventoryModule;
 using System.Collections.Generic;
-using PurrNet;
+using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))]
-public class Playercontroller : NetworkBehaviour {	
-	[SerializeField]
-	public float speed;
-	public CharacterController Character;
-	public Camera main_Camera;
-	
-	protected override void OnSpawned() {
-		if(!(base.isOwner)) {
-			Character.enabled = false;
+namespace Inventory.Examples {
+	public class PlayerInventoryInput : MonoBehaviour {	
+		[SerializeField]
+		private float Range;
+		[SerializeField]
+		private Camera MainCamera;
+		private ContainerBehaviour displayContainer;
+		
+		private void Awake() {
+		}
+
+		public void Update() {
+			RaycastHit hitInfo = default(RaycastHit);
+			var MainRay = new Ray(MainCamera.transform.position, MainCamera.transform.forward);
+			if(Input.GetKeyDown(KeyCode.E)) {
+				if(Physics.Raycast(MainRay, out hitInfo, Range)) {
+					if((hitInfo.collider != null)) {
+						displayContainer = hitInfo.collider.gameObject.GetComponent<ContainerBehaviour>();
+						displayContainer.Display();
+					}
+					 else {
+						return;
+					}
+				}
+			}
+			if(Input.GetKeyDown(KeyCode.Q)) {
+				if((displayContainer != null)) {
+					displayContainer.Hide();
+					displayContainer = null;
+				}
+			}
 		}
 	}
-	
-	private void Update() {
-		HandleMove();
-	}
-	
-	public void HandleMove() {
-		Character.Move(new Vector3(((this.speed * Input.GetAxisRaw("Horizontal")) * Time.deltaTime), 0F, ((this.speed * Input.GetAxisRaw("Horizontal")) * Time.deltaTime)));
-	}
-}
 
+}
