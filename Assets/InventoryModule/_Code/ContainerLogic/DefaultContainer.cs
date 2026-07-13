@@ -8,7 +8,6 @@ public class DefaultContainer : ContainerBehaviour
 {
 
     [SerializeField] private ContainerBehaviour quickTransferContainer;
-
     protected override void OnActivated()
     {
         SetTransferTo(quickTransferContainer);

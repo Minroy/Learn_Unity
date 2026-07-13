@@ -19,9 +19,6 @@ public class PlayerInventory : MonoBehaviour
 
     private void Start()
     {
-
-
-
     }
 
     public void Update()
@@ -42,10 +39,6 @@ public class PlayerInventory : MonoBehaviour
                 backPack.AddToContainer(item2, leftover1);
             }
         }
-        if (Input.GetMouseButtonDown(1))
-        {
-
-        }
 
     }
 
@@ -55,7 +48,15 @@ public class PlayerInventory : MonoBehaviour
         Slot hoveredSlot = default(Slot);
         int hoveredindex = default(int);
         InventoryManager.GetHoveredInfo(out Cont, out hoveredSlot, out hoveredindex);
-        Cont.RemoveAmountAtIndex(amount, hoveredindex);
+        Cont.RemoveAmountAtIndex(1, hoveredindex);
+    }
+    private void RemoveTestIndex(int amount, int index)
+    {
+        ContainerBehaviour Cont = default(ContainerBehaviour);
+        Slot hoveredSlot = default(Slot);
+        int hoveredindex = default(int);
+        InventoryManager.GetHoveredInfo(out Cont, out hoveredSlot, out hoveredindex);
+        Cont.RemoveAmountAtIndex(1, hoveredindex);
     }
 
     private int Info(int amountToModify)

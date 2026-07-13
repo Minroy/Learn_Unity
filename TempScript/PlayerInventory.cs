@@ -1,5 +1,6 @@
 #pragma warning disable
 using InventoryModule;
+using InventoryModule.Executables;
 using System;
 using UnityEngine;
 
@@ -17,7 +18,8 @@ public class PlayerInventory : MonoBehaviour {
 	private int amountToAdd = 1;
 	
 	private void Start() {
-		InventoryManager.Register("RemoveAtIndex", new Action<int>(RemoveTestIndex));
+		CustomExecutable.AddExecutable<int>("RemoveAtIndex", new Action<int>(RemoveTestIndex));
+		CustomExecutable.AddExecutable<int, int>("RemoveAtIndex", new Action<int, int>(RemoveTestIndex));
 	}
 
 	public void Update() {
@@ -33,9 +35,7 @@ public class PlayerInventory : MonoBehaviour {
 				backPack.AddToContainer(item2, leftover1);
 			}
 		}
-		if(Input.GetMouseButtonDown(1)) {
-			InventoryManager.ExecuteLogic("RemoveAtIndex", new object[] { 20 });
-		}
+		if(Input.GetMouseButtonDown(1)) {}
 	}
 
 	private void RemoveTestIndex(int amount) {
@@ -43,7 +43,15 @@ public class PlayerInventory : MonoBehaviour {
 		Slot hoveredSlot = default(Slot);
 		int hoveredindex = default(int);
 		InventoryManager.GetHoveredInfo(out Cont, out hoveredSlot, out hoveredindex);
-		Cont.RemoveAmountAtIndex(amount, hoveredindex);
+		Cont.RemoveAmountAtIndex(1, hoveredindex);
+	}
+
+	private void RemoveTestIndex(int amount, int index) {
+		ContainerBehaviour Cont1 = default(ContainerBehaviour);
+		Slot hoveredSlot1 = default(Slot);
+		int hoveredindex1 = default(int);
+		InventoryManager.GetHoveredInfo(out Cont1, out hoveredSlot1, out hoveredindex1);
+		Cont1.RemoveAmountAtIndex(1, hoveredindex1);
 	}
 
 	private int Info(int amountToModify) {

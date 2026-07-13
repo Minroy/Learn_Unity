@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 
 namespace InventoryModule
 {
@@ -56,14 +57,6 @@ namespace InventoryModule
             ctx.SourceContainer.PruneEmptySlots();
             ctx.destinationContainer.PruneEmptySlots();
         }
-
-
-        public static void ResolveRemoval(Slot source, Slot Destination, SlotContext ctx)
-        {
-
-        }
-
-
 
         public static void ResolveQuickSwapping(Slot source, SlotContext ctx)
         {

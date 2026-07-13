@@ -38,7 +38,6 @@ namespace InventoryModule
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {
-            Methods.Clear();
             Containers.Clear();
         }
 
