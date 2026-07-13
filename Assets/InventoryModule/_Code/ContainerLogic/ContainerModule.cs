@@ -7,7 +7,7 @@ namespace InventoryModule
 {
     public class ContainerModule : MonoBehaviour, IContainerIdentifier, IIgnoreContainer, ICloneable, ICurrentStatus
     {
-        [SerializeField] protected Viewer Viewer;
+        [SerializeField] CanvasGroup canvasGroup;
         private bool isDisplaying = false;  // Start hidden
 
 
@@ -61,8 +61,8 @@ namespace InventoryModule
             {
                 EnqueueContainer(async () =>
                 {
-                    Viewer.CanvasGroup.alpha = 1;
-                    Viewer.CanvasGroup.blocksRaycasts = true;
+                    canvasGroup.alpha = 1;
+                    canvasGroup.blocksRaycasts = true;
                     isDisplaying = true;
                     await Awaitable.NextFrameAsync();
                 });
@@ -75,8 +75,8 @@ namespace InventoryModule
             {
                 EnqueueContainer(async () =>
                 {
-                    Viewer.CanvasGroup.alpha = 1;
-                    Viewer.CanvasGroup.blocksRaycasts = true;
+                    canvasGroup.alpha = 0;
+                    canvasGroup.blocksRaycasts = false;
                     isDisplaying = false;
                     await Awaitable.NextFrameAsync();
                 });
