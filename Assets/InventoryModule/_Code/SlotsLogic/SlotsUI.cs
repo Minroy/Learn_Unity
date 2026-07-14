@@ -48,6 +48,8 @@ namespace InventoryModule
         /// <param name="newSlot"></param>
         public void Bind(ContainerBehaviour container,Slot newSlot)
         {
+            Debug.Log($"Binding {gameObject.name} to {container.name}");
+
             isdragging = false;
             // 1. Clean up the old slot subscription if it exists
             if (slot != null)

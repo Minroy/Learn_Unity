@@ -6,7 +6,6 @@ using UnityEngine;
 // for Customlogic Its recommended to create your own CLass and inherit form ContainerBehaviour
 public class DefaultContainer : ContainerBehaviour
 {
-
     [SerializeField] private ContainerBehaviour quickTransferContainer;
     protected override void OnActivated()
     {

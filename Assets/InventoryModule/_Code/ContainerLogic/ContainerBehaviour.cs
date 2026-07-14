@@ -1,5 +1,11 @@
 using UnityEngine;
-using UnityEngine.UI;
+using InventoryModule.Windows;
+using System;
+
+
+
+
+
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -9,6 +15,8 @@ namespace InventoryModule
 {
     public class ContainerBehaviour : ContainerModule
     {
+        [SerializeField] private bool GenerateVeiwer;
+        private bool viewerMade;
 
         //TODO Medium
         //Hook up logic.to this later, ignore events for now.
@@ -52,6 +60,16 @@ namespace InventoryModule
             }
         }
 
+        public Transform SlotParent
+        {
+            get
+            {
+                if (mainViewer != null && mainViewer.IsReady)
+                    return mainViewer.SlotContentsLocation;
+
+                return transform;
+            }
+        }
 
         #region OnSpawnedExecutions methods
 
@@ -65,46 +83,53 @@ namespace InventoryModule
             inventoryList.OnSlotsRemoved += RemoveSlot;
             InventoryManager.Register(this);
 
-            OnActivated();
+            if (viewerMade) return;
+            GenerateVeiwerMethod(GenerateVeiwer);
         }
 
 
 
         public void Start()
         {
+            if (mainViewer == null)
+                mainViewer = GetComponentInChildren<Viewer>();
+
+            OnActivated();
             Hide();
         }
 
+        protected virtual void OnActivated()
+        {
 
-
-        /// <summary>
-        /// Fires once the Container is Done registering and setting up. (Fired by Awake)
-        /// </summary>
-        protected virtual void OnActivated() { }
-
-        #endregion
-
+        }
 
         private void OnValidate()
         {
-            if (StartSize < 0) Debug.LogWarning("StartSize cannot be a negative number");
-            if (SlotPrefab == null)
-                return;
-
-            inventoryList ??= GenerateList(isDynamic, StartSize);
 #if UNITY_EDITOR
-            if (!Application.isPlaying)
+            EditorApplication.delayCall += () =>
             {
-                EditorApplication.delayCall += () =>
-                {
-                    if (this != null)
-                        GenerateSlots(StartSize);
-                };
-            }
+                if (this == null)
+                    return;
+
+                if (StartSize < 0)
+                    Debug.LogWarning("StartSize cannot be a negative number");
+
+                if (SlotPrefab == null)
+                    return;
+
+                inventoryList ??= GenerateList(isDynamic, StartSize);
+
+                if (!Application.isPlaying)
+                    GenerateSlots(StartSize);
+
+
+                if (viewerMade) return;
+                else
+                    GenerateVeiwerMethod(GenerateVeiwer);
+            };
 #endif
         }
-
-
+        #endregion
 
         /// <summary>
         /// Generates a inventoryList. (one time thing)
@@ -136,11 +161,11 @@ namespace InventoryModule
 
         public void AddAtIndex(Slot slotData, int index)
         {
-            EnqueueContainer(async () =>
+            EnqueTaskAysc(async () =>
             {
                 inventoryList.AddAtIndex(slotData, index);
 
-                GameObject slotObj = Instantiate(SlotPrefab, gameObject.transform);
+                GameObject slotObj = Instantiate(SlotPrefab, SlotParent);
                 slotObj.transform.SetSiblingIndex(index);
                 slotObj.name = $"Slot_{index}";
 
@@ -149,10 +174,10 @@ namespace InventoryModule
                 if (this != null)
                 {
                     // Everything from the shifted index down to the new end needs to be rebound
-                    int childCount = gameObject.transform.childCount;
+                    int childCount = SlotParent.childCount;
                     for (int i = index; i < childCount; i++)
                     {
-                        gameObject.transform.GetChild(i).name = $"Slot_{i}";
+                        SlotParent.GetChild(i).name = $"Slot_{i}";
                         InventoryManager.BindSingleSlot(this, i);
                     }
                 }
@@ -168,14 +193,14 @@ namespace InventoryModule
         /// </summary>
         public void PruneEmptySlots()
         {
-            EnqueueContainer(async () =>
+            EnqueTaskAysc(async () =>
             {
                 if (!isDynamic) return;
 
                 bool changed = false;
                 int lowestRemovedIndex = int.MaxValue;
 
-                for (int i = gameObject.transform.childCount - 1; i >= 0; i--)
+                for (int i = SlotParent.childCount - 1; i >= 0; i--)
                 {
                     if (i >= inventoryList.Count) continue;
 
@@ -186,7 +211,7 @@ namespace InventoryModule
                         InventoryManager.UnBindSingleSlot(this, i);
 
                         inventoryList.RemoveAtIndex(i);
-                        Destroy(gameObject.transform.GetChild(i).gameObject);
+                        Destroy(SlotParent.GetChild(i).gameObject);
 
                         changed = true;
                         lowestRemovedIndex = Mathf.Min(lowestRemovedIndex, i);
@@ -199,10 +224,10 @@ namespace InventoryModule
                     if (this != null)
                     {
                         // Only rebind the elements that shifted upwards from the lowest deleted point
-                        int childCount = gameObject.transform.childCount;
+                        int childCount = SlotParent.childCount;
                         for (int i = lowestRemovedIndex; i < childCount; i++)
                         {
-                            gameObject.transform.GetChild(i).name = $"Slot_{i}";
+                            SlotParent.GetChild(i).name = $"Slot_{i}";
                             InventoryManager.BindSingleSlot(this, i);
                         }
                     }
@@ -216,22 +241,22 @@ namespace InventoryModule
         /// <param name="index"></param>
         public void RemoveSlotAtIndex(int index)
         {
-            EnqueueContainer(async () =>
+            EnqueTaskAysc(async () =>
             {
                 if (index < 0 || index >= inventoryList.Count) return;
 
                 InventoryManager.UnBindSingleSlot(this, index);
                 inventoryList.RemoveAtIndex(index);
-                Destroy(gameObject.transform.GetChild(index).gameObject);
+                Destroy(SlotParent.GetChild(index).gameObject);
 
                 await Awaitable.NextFrameAsync();
                 if (this != null)
                 {
                     // Rebind shifted remaining slots from the removed position down
-                    int childCount = gameObject.transform.childCount;
+                    int childCount = SlotParent.childCount;
                     for (int i = index; i < childCount; i++)
                     {
-                        gameObject.transform.GetChild(i).name = $"Slot_{i}";
+                        SlotParent.GetChild(i).name = $"Slot_{i}";
                         InventoryManager.BindSingleSlot(this, i);
                     }
                 }
@@ -245,7 +270,7 @@ namespace InventoryModule
         /// <param name="index"></param>
         public void RemoveAmountAtIndex(int amountToRemove, int index)
         {
-            EnqueueContainer(async () =>
+            EnqueTaskAysc(async () =>
             {
                 if (index < 0 || index >= inventoryList.Count) return;
 
@@ -262,7 +287,7 @@ namespace InventoryModule
 
         private void RemoveSlot(int index)
         {
-            Destroy(transform.GetChild(index).gameObject);
+            Destroy(SlotParent.GetChild(index).gameObject);
         }
         #endregion
 
@@ -281,6 +306,7 @@ namespace InventoryModule
 
         public void OnDestroy()
         {
+            mainViewer = null;
             inventoryList.OnSlotsAdd -= AddSlots;
             inventoryList.OnSlotsRemoved -= RemoveSlot;
         }
@@ -304,8 +330,8 @@ namespace InventoryModule
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                for (int i = gameObject.transform.childCount - 1; i >= 0; i--)
-                    Undo.DestroyObjectImmediate(gameObject.transform.GetChild(i).gameObject);
+                for (int i = SlotParent.childCount - 1; i >= 0; i--)
+                    Undo.DestroyObjectImmediate(SlotParent.GetChild(i).gameObject);
                 return;
             }
 #endif
@@ -313,8 +339,8 @@ namespace InventoryModule
 
             InventoryManager.UnRegister(this);
 
-            for (int i = gameObject.transform.childCount - 1; i >= 0; i--)
-                Destroy(gameObject.transform.GetChild(i).gameObject);
+            for (int i = SlotParent.childCount - 1; i >= 0; i--)
+                Destroy(SlotParent.GetChild(i).gameObject);
         }
 
 
@@ -326,7 +352,7 @@ namespace InventoryModule
             {
                 for (int i = 0; i < amount; i++)
                 {
-                    GameObject slot = PrefabUtility.InstantiatePrefab(SlotPrefab, gameObject.transform) as GameObject;
+                    GameObject slot = PrefabUtility.InstantiatePrefab(SlotPrefab, SlotParent) as GameObject;
                     slot.name = $"Slot_{i}";
                     Undo.RegisterCreatedObjectUndo(slot, "Add Slot");
                 }
@@ -335,12 +361,12 @@ namespace InventoryModule
 #endif
             if (!isDynamic) return;
 
-            EnqueueContainer(async () =>
+            EnqueTaskAysc(async () =>
             {
-                int currentCount = gameObject.transform.childCount;
+                int currentCount = SlotParent.childCount;
                 for (int i = 0; i < amount; i++)
                 {
-                    GameObject slotObj = Instantiate(SlotPrefab, gameObject.transform.transform);
+                    GameObject slotObj = Instantiate(SlotPrefab, SlotParent.transform);
                     slotObj.name = $"Slot_{currentCount + i}";
                 }
 
@@ -348,7 +374,7 @@ namespace InventoryModule
                 if (this != null)
                 {
                     // Bind only the newly created tail elements
-                    int finalCount = gameObject.transform.childCount;
+                    int finalCount = SlotParent.childCount;
                     for (int i = currentCount; i < finalCount; i++)
                     {
                         InventoryManager.BindSingleSlot(this, i);
@@ -359,22 +385,75 @@ namespace InventoryModule
 
         #endregion
 
+        #region Generate Viewer
 
-
-        #region Container TransferHandler
-
-        public ContainerBehaviour QuickTransferTo { get; private set; }
-
-        public void SetTransferTo(ContainerBehaviour containerToTransfer)
+        /// <summary>
+        /// Lets devs Choose if they Want a viewer or not. 
+        /// </summary>
+        /// <param name="toGenrate"></param>
+        private void GenerateVeiwerMethod(bool toGenrate)
         {
-            QuickTransferTo = containerToTransfer;
+            Debug.Log("Moving");
+            try
+            {
+                if (toGenrate)
+                {
+                    Debug.Log("moving to Veiwer");
+                    GameObject ViewerOBJ = new("Viewer");
+#if UNITY_EDITOR
+                    Undo.RegisterCreatedObjectUndo(ViewerOBJ, "Created Viewer");
+#endif
+                    ViewerOBJ.transform.SetParent(transform, false);
+                    if (mainViewer == null)
+                    {
+                        mainViewer = ViewerOBJ.AddComponent<Viewer>();
+                    }
+
+                    mainViewer.CreateSlotContainer();
+
+                    Transform destination = mainViewer.SlotContentsLocation;
+
+                    for (int i = transform.childCount - 1; i >= 0; i--)
+                    {
+                        Transform child = transform.GetChild(i);
+
+                        if (child == mainViewer.transform)
+                            continue;
+
+                        child.SetParent(destination, false);
+                    }
+
+                    viewerMade = true;
+                }
+                else
+                {
+                    Transform slotLocation = mainViewer.SlotContentsLocation;
+                    if (slotLocation != null)
+                    {
+                        // Move slots back from Viewer to Container transform (Synchronously!)
+                        for (int i = slotLocation.childCount - 1; i >= 0; i--)
+                        {
+                            Transform child = slotLocation.GetChild(i);
+#if UNITY_EDITOR
+                            if (!Application.isPlaying)
+                            {
+                                Undo.SetTransformParent(child, transform, "Moving Slots Back To Container");
+                                continue;
+                            }
+#endif
+                            child.SetParent(transform, false);
+                        }
+                    }
+                    viewerMade = false;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.Log(" Failed to Create veiwer " + e);
+            }
         }
 
         #endregion
 
-        #region Generate DisplayComponents
-    
-
-        #endregion
     }
 }

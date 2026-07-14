@@ -18,8 +18,6 @@ public class PlayerInventory : MonoBehaviour {
 	private int amountToAdd = 1;
 	
 	private void Start() {
-		CustomExecutable.AddExecutable<int>("RemoveAtIndex", new Action<int>(RemoveTestIndex));
-		CustomExecutable.AddExecutable<int, int>("RemoveAtIndex", new Action<int, int>(RemoveTestIndex));
 	}
 
 	public void Update() {

@@ -1,4 +1,5 @@
 ﻿using InventoryModule.Iterfaces;
+using InventoryModule.Windows;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -7,7 +8,7 @@ namespace InventoryModule
 {
     public class ContainerModule : MonoBehaviour, IContainerIdentifier, IIgnoreContainer, ICloneable, ICurrentStatus
     {
-        [SerializeField] CanvasGroup canvasGroup;
+        protected Viewer mainViewer;
         private bool isDisplaying = false;  // Start hidden
 
 
@@ -20,7 +21,7 @@ namespace InventoryModule
         /// enqueued while another is mid-flight will not start until the
         /// current one has fully finished.
         /// </summary>
-        protected Awaitable EnqueueContainer(Func<Awaitable> operation)
+        protected Awaitable EnqueTaskAysc(Func<Awaitable> operation)
         {
             operationQueue.Enqueue(operation);
 
@@ -59,13 +60,13 @@ namespace InventoryModule
         {
             if (!isDisplaying)
             {
-                EnqueueContainer(async () =>
-                {
-                    canvasGroup.alpha = 1;
-                    canvasGroup.blocksRaycasts = true;
-                    isDisplaying = true;
-                    await Awaitable.NextFrameAsync();
-                });
+                ////EnqueTaskAysc(async () =>
+                ////{
+                ////    canvasGroup.alpha = 1;
+                ////    canvasGroup.blocksRaycasts = true;
+                ////    isDisplaying = true;
+                ////    await Awaitable.NextFrameAsync();
+                ////});
             }
         }
 
@@ -73,13 +74,13 @@ namespace InventoryModule
         {
             if (isDisplaying)
             {
-                EnqueueContainer(async () =>
-                {
-                    canvasGroup.alpha = 0;
-                    canvasGroup.blocksRaycasts = false;
-                    isDisplaying = false;
-                    await Awaitable.NextFrameAsync();
-                });
+                ////EnqueTaskAysc(async () =>
+                ////{
+                ////    canvasGroup.alpha = 0;
+                ////    canvasGroup.blocksRaycasts = false;
+                ////    isDisplaying = false;
+                ////    await Awaitable.NextFrameAsync();
+                ////});
             }
         }
 
@@ -109,5 +110,16 @@ namespace InventoryModule
         {
             throw new NotImplementedException();
         }
+
+        #region Container TransferHandler
+
+        public ContainerBehaviour QuickTransferTo { get; private set; }
+
+        public void SetTransferTo(ContainerBehaviour containerToTransfer)
+        {
+            QuickTransferTo = containerToTransfer;
+        }
+
+        #endregion
     }
 }
