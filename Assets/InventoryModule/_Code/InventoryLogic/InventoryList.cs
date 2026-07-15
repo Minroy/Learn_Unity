@@ -36,6 +36,12 @@ namespace InventoryModule
         public event Action<int> OnSlotsRemoved;
         public event Action onSlotsUpdated;
 
+
+        public InventoryList()
+        {
+
+        }
+
         public InventoryList(bool isDynamic, int startSize, int maxSize = -1)
         {
             this.isDynamic = isDynamic;

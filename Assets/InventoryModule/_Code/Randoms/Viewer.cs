@@ -1,82 +1,88 @@
-﻿#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
+﻿using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace InventoryModule.Windows
 {
-    [RequireComponent(typeof(GraphicRaycaster), typeof(CanvasScaler))]
+    [RequireComponent(typeof(Canvas), typeof(GraphicRaycaster), typeof(CanvasScaler))]
     public class Viewer : MonoBehaviour
     {
-        public string ViewerName = "Viewer";
-        public string SlotContainerName = "SlotContainer";
-
-        private Canvas Canvas;
-
-        [SerializeField]
         private GameObject slotContainer;
 
-        public GameObject SlotContainer => slotContainer;
+        public string viewerName;
+        public string SlotContains;
+
+
+        public Canvas canvas;
 
         public Transform SlotContentsLocation
         {
             get
             {
                 if (slotContainer == null)
-                    CreateSlotContainer();
+                    CreateSlotContainer(SlotContains);
 
                 return slotContainer.transform;
             }
         }
 
-        public bool IsReady { get; private set; }
-
 
         private void Awake()
         {
-            Canvas = GetComponent<Canvas>();
+            if (slotContainer == null)
+                CreateSlotContainer(SlotContains);
+            
+        }
 
-            CreateSlotContainer();
+        private void OnDestroy()
+        {
 
-            IsReady = true;
         }
 
         private void OnValidate()
         {
-            gameObject.name = ViewerName;
+            gameObject.name = viewerName;
+            if (slotContainer != null)
+                slotContainer.name = SlotContains;
 
 #if UNITY_EDITOR
-            if (!Application.isPlaying)
+            EditorApplication.delayCall += () =>
             {
-                EditorApplication.delayCall += () =>
-                {
-                    if (this != null)
-                        CreateSlotContainer();
-                };
-            }
+                if (!Application.isPlaying && slotContainer == null)
+                    CreateSlotContainer("SlotContains");
+            };
 #endif
         }
 
-        public void CreateSlotContainer()
+        public void CreateSlotContainer(string Name)
         {
+            canvas = GetComponent<Canvas>();
+            gameObject.name = "Viewer";
             if (slotContainer != null)
                 return;
 
-            Transform existing = transform.Find(SlotContainerName);
+            if (string.IsNullOrEmpty(Name) || string.IsNullOrWhiteSpace(Name))
+                Name = nameof(SlotContains);
 
-            if (existing != null)
-            {
-                slotContainer = existing.gameObject;
-                return;
-            }
 
-            slotContainer = new GameObject(SlotContainerName,typeof(RectTransform),
-                typeof(GridLayoutGroup),typeof(CanvasGroup));
+            slotContainer = new GameObject(
+                Name,
+                typeof(RectTransform),
+                typeof(GridLayoutGroup),
+                typeof(CanvasGroup)
+            );
 
 
             slotContainer.transform.SetParent(transform, false);
+
+
+            RectTransform rect = slotContainer.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         }
     }
 }

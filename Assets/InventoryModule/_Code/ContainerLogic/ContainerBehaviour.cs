@@ -7,6 +7,9 @@ using System;
 
 
 
+
+
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -15,8 +18,7 @@ namespace InventoryModule
 {
     public class ContainerBehaviour : ContainerModule
     {
-        [SerializeField] private bool GenerateVeiwer;
-        private bool viewerMade;
+        public bool GenerateVeiwer;
 
         //TODO Medium
         //Hook up logic.to this later, ignore events for now.
@@ -60,16 +62,7 @@ namespace InventoryModule
             }
         }
 
-        public Transform SlotParent
-        {
-            get
-            {
-                if (mainViewer != null && mainViewer.IsReady)
-                    return mainViewer.SlotContentsLocation;
 
-                return transform;
-            }
-        }
 
         #region OnSpawnedExecutions methods
 
@@ -82,9 +75,6 @@ namespace InventoryModule
             inventoryList.OnSlotsAdd += AddSlots;
             inventoryList.OnSlotsRemoved += RemoveSlot;
             InventoryManager.Register(this);
-
-            if (viewerMade) return;
-            GenerateVeiwerMethod(GenerateVeiwer);
         }
 
 
@@ -106,30 +96,36 @@ namespace InventoryModule
         private void OnValidate()
         {
 #if UNITY_EDITOR
-            EditorApplication.delayCall += () =>
-            {
-                if (this == null)
-                    return;
-
-                if (StartSize < 0)
-                    Debug.LogWarning("StartSize cannot be a negative number");
-
-                if (SlotPrefab == null)
-                    return;
-
-                inventoryList ??= GenerateList(isDynamic, StartSize);
-
-                if (!Application.isPlaying)
-                    GenerateSlots(StartSize);
-
-
-                if (viewerMade) return;
-                else
-                    GenerateVeiwerMethod(GenerateVeiwer);
-            };
+            EditorApplication.delayCall += RunEditorValidate;
 #endif
         }
         #endregion
+
+
+#if UNITY_EDITOR
+        private void RunEditorValidate()
+        {
+            // If the container behavior itself was deleted, stop immediately
+            if (this == null)
+                return;
+
+            if (StartSize < 0)
+                Debug.LogWarning("StartSize cannot be a negative number");
+
+            if (SlotPrefab == null)
+                return;
+
+            inventoryList ??= GenerateList(isDynamic, StartSize);
+
+            if (!Application.isPlaying)
+            {
+                GenerateSlots(StartSize);
+                GenerateViewerEditor(GenerateVeiwer);
+            }
+        }
+
+
+#endif
 
         /// <summary>
         /// Generates a inventoryList. (one time thing)
@@ -306,11 +302,14 @@ namespace InventoryModule
 
         public void OnDestroy()
         {
+#if UNITY_EDITOR
             mainViewer = null;
             inventoryList.OnSlotsAdd -= AddSlots;
             inventoryList.OnSlotsRemoved -= RemoveSlot;
+#endif
         }
         #endregion
+
 
 
 
@@ -385,75 +384,57 @@ namespace InventoryModule
 
         #endregion
 
-        #region Generate Viewer
 
-        /// <summary>
-        /// Lets devs Choose if they Want a viewer or not. 
-        /// </summary>
-        /// <param name="toGenrate"></param>
-        private void GenerateVeiwerMethod(bool toGenrate)
+#if UNITY_EDITOR
+        protected void GenerateViewerEditor(bool toGenerate)
         {
-            Debug.Log("Moving");
+
             try
             {
-                if (toGenrate)
+                if (toGenerate)
                 {
-                    Debug.Log("moving to Veiwer");
-                    GameObject ViewerOBJ = new("Viewer");
-#if UNITY_EDITOR
-                    Undo.RegisterCreatedObjectUndo(ViewerOBJ, "Created Viewer");
-#endif
-                    ViewerOBJ.transform.SetParent(transform, false);
-                    if (mainViewer == null)
+                    if (mainViewer != null) return;
+
+                    var viewerChild = new GameObject("Viewer", typeof(Viewer));
+                    mainViewer = viewerChild.GetComponent<Viewer>();
+                    mainViewer.CreateSlotContainer("SlotContains");
+                    mainViewer.transform.SetParent(transform, false);
+
+
+                    // We check 'transform.childCount > 1' because the viewer itself is child 1
+                    while (transform.childCount > 1)
                     {
-                        mainViewer = ViewerOBJ.AddComponent<Viewer>();
-                    }
-
-                    mainViewer.CreateSlotContainer();
-
-                    Transform destination = mainViewer.SlotContentsLocation;
-
-                    for (int i = transform.childCount - 1; i >= 0; i--)
-                    {
-                        Transform child = transform.GetChild(i);
-
+                        var child = transform.GetChild(0);
                         if (child == mainViewer.transform)
-                            continue;
-
-                        child.SetParent(destination, false);
-                    }
-
-                    viewerMade = true;
-                }
-                else
-                {
-                    Transform slotLocation = mainViewer.SlotContentsLocation;
-                    if (slotLocation != null)
-                    {
-                        // Move slots back from Viewer to Container transform (Synchronously!)
-                        for (int i = slotLocation.childCount - 1; i >= 0; i--)
                         {
-                            Transform child = slotLocation.GetChild(i);
-#if UNITY_EDITOR
-                            if (!Application.isPlaying)
-                            {
-                                Undo.SetTransformParent(child, transform, "Moving Slots Back To Container");
-                                continue;
-                            }
-#endif
-                            child.SetParent(transform, false);
+                            // If the viewer is index 0, move it to the end so we can grab the other slots
+                            child.SetAsLastSibling();
+                            continue;
                         }
+
+                        child.SetParent(SlotParent, false);
                     }
-                    viewerMade = false;
+                }
+
+                if (!toGenerate)
+                {
+                    if (mainViewer == null) return;
+                    while (SlotParent.childCount > 0)
+                    {
+                        SlotParent.GetChild(0).SetParent(transform, false);
+                    }
+
+                    Undo.DestroyObjectImmediate(mainViewer.gameObject);
+                    mainViewer = null;
                 }
             }
             catch (Exception e)
             {
-                Debug.Log(" Failed to Create veiwer " + e);
+                Debug.LogError(e);
             }
-        }
 
-        #endregion
+        }
+#endif
 
     }
 }

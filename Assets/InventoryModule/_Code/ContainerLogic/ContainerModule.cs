@@ -8,7 +8,27 @@ namespace InventoryModule
 {
     public class ContainerModule : MonoBehaviour, IContainerIdentifier, IIgnoreContainer, ICloneable, ICurrentStatus
     {
-        protected Viewer mainViewer;
+        [SerializeField] protected Viewer mainViewer;
+
+
+        protected Transform SlotParent
+        {
+            get
+            {
+                if (mainViewer != null)
+                    return mainViewer.SlotContentsLocation;
+
+                return transform;
+            }
+        }
+
+
+        public void SetViewer(Viewer viewer)
+        {
+            mainViewer = viewer;
+        }
+
+
         private bool isDisplaying = false;  // Start hidden
 
 

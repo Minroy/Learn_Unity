@@ -44,6 +44,7 @@ public class PlayerInventory : MonoBehaviour
 
     private void RemoveTestIndex(int amount)
     {
+        
         ContainerBehaviour Cont = default(ContainerBehaviour);
         Slot hoveredSlot = default(Slot);
         int hoveredindex = default(int);
