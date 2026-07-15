@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 namespace InventoryModule.Windows
 {
-    [RequireComponent(typeof(Canvas), typeof(GraphicRaycaster), typeof(CanvasScaler))]
+    [RequireComponent(typeof(Canvas), typeof(UnityEngine.UI.GraphicRaycaster), typeof(CanvasScaler))]
     public class Viewer : MonoBehaviour
     {
         private GameObject slotContainer;

@@ -3,7 +3,7 @@ using InventoryModule;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Inventory.Examples
+namespace InventoryModule.Examples
 {
     public class PlayerInventoryInput : MonoBehaviour
     {

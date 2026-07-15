@@ -219,7 +219,7 @@ namespace InventoryModule
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         /// <summary>
-        /// Runtime only. Change whater the Inventory should be fixed or not.
+        /// Runtime only. Change whater the inventory should be fixed or not.
         /// </summary>
         public void SetDynamic(bool isDynamic)
         {

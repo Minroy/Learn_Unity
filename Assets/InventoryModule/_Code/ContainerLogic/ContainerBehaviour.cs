@@ -1,13 +1,5 @@
 using UnityEngine;
 using InventoryModule.Windows;
-using System;
-
-
-
-
-
-
-
 
 
 #if UNITY_EDITOR
@@ -428,7 +420,7 @@ namespace InventoryModule
                     mainViewer = null;
                 }
             }
-            catch (Exception e)
+            catch (System.Exception e)
             {
                 Debug.LogError(e);
             }

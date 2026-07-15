@@ -1,4 +1,3 @@
-using InventoryModule;
 using UnityEngine;
 using UnityEngine.UI;
 namespace InventoryModule

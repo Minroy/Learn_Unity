@@ -1,5 +1,5 @@
 using UnityEngine;
-namespace Inventory.Examples
+namespace InventoryModule.Examples
 {
     [RequireComponent(typeof(CharacterController))]
     public class PlayerMove : MonoBehaviour
