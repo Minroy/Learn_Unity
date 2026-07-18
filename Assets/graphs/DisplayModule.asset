@@ -1,0 +1,1555 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 391b51114c7873d4db8b5a84922a248c, type: 3}
+  m_Name: DisplayModule
+  m_EditorClassIdentifier: 
+  namespace: InventoryModule.Windows
+  usingNamespaces:
+  - InventoryModule
+  - System.Collections.Generic
+  - System.ComponentModel
+  - UnityEngine
+  - InventoryModule
+  typeList:
+    references:
+    - {fileID: 821452036995652728}
+  scriptData:
+    fileName: DisplayModule
+    selfTypeData:
+      typeName: 
+      reference: {fileID: 0}
+    typeDatas: []
+    debug: 0
+    debugValueNode: 1
+    compileToScript: 1
+    unityObjects: []
+--- !u!114 &821452036995652728
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e027654007b243f43a5506478ee4dbaa, type: 3}
+  m_Name: DisplayModule
+  m_EditorClassIdentifier: 
+  icon: {fileID: 0}
+  m_serializedGraph:
+    serializedGraph:
+      rid: 508112214908207104
+    owner: {fileID: 821452036995652728}
+    serializedData:
+      format: 0
+      references: []
+      data: 
+      serializationNodes: []
+      serializedType: 
+  scriptTypeData:
+    scriptGraphReference: {fileID: 11400000}
+    typeName: 
+  inheritType:
+    kind: 1
+    serializedString: InventoryModule.InventoryModuleBase
+    serializedBytes: 
+    references: []
+  modifier:
+    Public: 1
+    Private: 0
+    Protected: 0
+    Internal: 0
+    Abstract: 1
+    Static: 0
+    Sealed: 0
+    Partial: 0
+    ReadOnly: 0
+  interfaces: []
+  scriptData:
+    fileName: DisplayModule
+    selfTypeData:
+      typeName: 
+      reference: {fileID: 0}
+    typeDatas: []
+    debug: 0
+    debugValueNode: 1
+    compileToScript: 1
+    unityObjects: []
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 508112214908207104
+      type: {class: SerializedGraph/GraphData, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        graph:
+          rid: 508112214908207105
+    - rid: 508112214908207105
+      type: {class: Graph, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: DisplayModule
+        _id: 0
+        _comment: This displays a Containers internal List.
+        _parent:
+          rid: -2
+        childs:
+        - rid: 508112214908207106
+        - rid: 508112214908207107
+        - rid: 508112214908207108
+        - rid: 508112214908207109
+        - rid: 508112214908207110
+        expanded: 1
+        graphLayout: 0
+        attributes:
+        - attributeType:
+            kind: 1
+            serializedString: UnityEngine.RequireComponent
+            serializedBytes: 
+            references: []
+          constructor:
+            parameters:
+            - name: requiredComponent
+              serializedValue:
+                serializedData:
+                  format: 0
+                  references: []
+                  data: 022f00000000012b0000004d00610078007900470061006d00650073002e0055004e006f00640065002e00530065007200690061006c0069007a006500640054007900700065002c00200075004e006f006400650033002e0043006f0072006500000000001d01040000006b0069006e0064000100000000000000270110000000730065007200690061006c0069007a006500640053007400720069006e006700011700000055006e0069007400790045006e00670069006e0065002e00430061006e00760061007300470072006f007500700005
+                  serializationNodes: []
+                  serializedType: 
+                serializedType:
+                  kind: 1
+                  serializedString: System.Type
+                  serializedBytes: 
+                  references: []
+            initializer: []
+            typeData:
+              kind: 1
+              serializedString: UnityEngine.RequireComponent
+              serializedBytes: 
+              references: []
+        m_UniqueID: 38
+    - rid: 508112214908207106
+      type: {class: VariableContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 1
+        _comment: 
+        _parent:
+          rid: 508112214908207105
+        childs:
+        - rid: 508112214908207111
+        - rid: 508112214908207112
+        expanded: 1
+    - rid: 508112214908207107
+      type: {class: FunctionContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 4
+        _comment: 
+        _parent:
+          rid: 508112214908207105
+        childs:
+        - rid: 508112214908207113
+        - rid: 508112214908207114
+        - rid: 508112214908207115
+        - rid: 508112214908207116
+        - rid: 508112214908207161
+        - rid: 508112214908207117
+        - rid: 508112214908207118
+        - rid: 508112214908207119
+        - rid: 508112214908207179
+        - rid: 508112214908207120
+        expanded: 1
+    - rid: 508112214908207108
+      type: {class: EventGraphContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 21
+        _comment: 
+        _parent:
+          rid: 508112214908207105
+        childs:
+        - rid: 508112214908207121
+        expanded: 1
+    - rid: 508112214908207109
+      type: {class: PropertyContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 23
+        _comment: 
+        _parent:
+          rid: 508112214908207105
+        childs: []
+        expanded: 1
+    - rid: 508112214908207110
+      type: {class: ConstructorContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 24
+        _comment: 
+        _parent:
+          rid: 508112214908207105
+        childs: []
+        expanded: 1
+    - rid: 508112214908207111
+      type: {class: Variable, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: CurrentContainer
+        _id: 2
+        _comment: 
+        _parent:
+          rid: 508112214908207106
+        childs: []
+        expanded: 1
+        serializedValue:
+          serializedData:
+            format: 0
+            references: []
+            data: 
+            serializationNodes: []
+            serializedType: 
+          serializedType:
+            kind: 1
+            serializedString: InventoryModule.ContainerBehaviour
+            serializedBytes: 
+            references: []
+        resetOnEnter: 0
+        attributes: []
+        modifier:
+          Public: 0
+          Private: 1
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Event: 0
+          ReadOnly: 0
+          Const: 0
+        alwaysOverride: 0
+    - rid: 508112214908207112
+      type: {class: Variable, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: CanvasGroup
+        _id: 3
+        _comment: 
+        _parent:
+          rid: 508112214908207106
+        childs: []
+        expanded: 1
+        serializedValue:
+          serializedData:
+            format: 0
+            references: []
+            data: 
+            serializationNodes: []
+            serializedType: 
+          serializedType:
+            kind: 1
+            serializedString: UnityEngine.CanvasGroup
+            serializedBytes: 
+            references: []
+        resetOnEnter: 0
+        attributes: []
+        modifier:
+          Public: 0
+          Private: 1
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Event: 0
+          ReadOnly: 0
+          Const: 0
+        alwaysOverride: 0
+    - rid: 508112214908207113
+      type: {class: Function, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: Display
+        _id: 5
+        _comment: displayes the given container
+        _parent:
+          rid: 508112214908207107
+        childs:
+        - rid: 508112214908207122
+        - rid: 508112214908207157
+        expanded: 1
+        parameters: []
+        modifier:
+          Public: 1
+          Private: 0
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Unsafe: 0
+          Virtual: 0
+          Abstract: 0
+          Extern: 0
+          New: 0
+          Override: 0
+          Partial: 0
+          Sealed: 0
+          Async: 0
+        returnType:
+          kind: 1
+          serializedString: System.Void
+          serializedBytes: 
+          references: []
+        attributes: []
+        genericParameters: []
+    - rid: 508112214908207114
+      type: {class: Function, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: Display
+        _id: 6
+        _comment: 
+        _parent:
+          rid: 508112214908207107
+        childs:
+        - rid: 508112214908207123
+        - rid: 508112214908207158
+        expanded: 1
+        parameters:
+        - _id: 6d50b16f31178fd3
+          name: Containerbehaviour
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.ContainerBehaviour
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        modifier:
+          Public: 1
+          Private: 0
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Unsafe: 0
+          Virtual: 0
+          Abstract: 0
+          Extern: 0
+          New: 0
+          Override: 0
+          Partial: 0
+          Sealed: 0
+          Async: 0
+        returnType:
+          kind: 1
+          serializedString: System.Void
+          serializedBytes: 
+          references: []
+        attributes: []
+        genericParameters: []
+    - rid: 508112214908207115
+      type: {class: Function, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: Display
+        _id: 7
+        _comment: displayes the given container, with canvas options
+        _parent:
+          rid: 508112214908207107
+        childs:
+        - rid: 508112214908207124
+        - rid: 508112214908207159
+        expanded: 1
+        parameters:
+        - _id: 5dc0a38f72164d8d
+          name: Containerbehaviour
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.ContainerBehaviour
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        - _id: 4912635336a29a66
+          name: Canvas
+          summary: 
+          type:
+            kind: 1
+            serializedString: UnityEngine.Canvas
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        modifier:
+          Public: 1
+          Private: 0
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Unsafe: 0
+          Virtual: 0
+          Abstract: 0
+          Extern: 0
+          New: 0
+          Override: 0
+          Partial: 0
+          Sealed: 0
+          Async: 0
+        returnType:
+          kind: 1
+          serializedString: System.Void
+          serializedBytes: 
+          references: []
+        attributes: []
+        genericParameters: []
+    - rid: 508112214908207116
+      type: {class: Function, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: Display
+        _id: 8
+        _comment: displayes the given container, with canvas options
+        _parent:
+          rid: 508112214908207107
+        childs:
+        - rid: 508112214908207125
+        - rid: 508112214908207160
+        expanded: 1
+        parameters:
+        - _id: 3e2081b0f680af5
+          name: Containerbehaviour
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.ContainerBehaviour
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        - _id: 45e727bc5d7085a8
+          name: Canvas
+          summary: 
+          type:
+            kind: 1
+            serializedString: UnityEngine.Canvas
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        - _id: 72110e401115cabb
+          name: SlotContext
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.SlotContext
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        modifier:
+          Public: 1
+          Private: 0
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Unsafe: 0
+          Virtual: 0
+          Abstract: 0
+          Extern: 0
+          New: 0
+          Override: 0
+          Partial: 0
+          Sealed: 0
+          Async: 0
+        returnType:
+          kind: 1
+          serializedString: System.Void
+          serializedBytes: 
+          references: []
+        attributes: []
+        genericParameters: []
+    - rid: 508112214908207117
+      type: {class: Function, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: Hide
+        _id: 9
+        _comment: Hides the current Container
+        _parent:
+          rid: 508112214908207107
+        childs:
+        - rid: 508112214908207126
+        - rid: 508112214908207175
+        expanded: 1
+        parameters: []
+        modifier:
+          Public: 1
+          Private: 0
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Unsafe: 0
+          Virtual: 0
+          Abstract: 0
+          Extern: 0
+          New: 0
+          Override: 0
+          Partial: 0
+          Sealed: 0
+          Async: 0
+        returnType:
+          kind: 1
+          serializedString: System.Void
+          serializedBytes: 
+          references: []
+        attributes: []
+        genericParameters: []
+    - rid: 508112214908207118
+      type: {class: Function, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: Hide
+        _id: 10
+        _comment: Hides the current Container
+        _parent:
+          rid: 508112214908207107
+        childs:
+        - rid: 508112214908207127
+        - rid: 508112214908207176
+        expanded: 1
+        parameters:
+        - _id: 3163a7992599452c
+          name: containerBehaviour
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.ContainerBehaviour
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        modifier:
+          Public: 1
+          Private: 0
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Unsafe: 0
+          Virtual: 0
+          Abstract: 0
+          Extern: 0
+          New: 0
+          Override: 0
+          Partial: 0
+          Sealed: 0
+          Async: 0
+        returnType:
+          kind: 1
+          serializedString: System.Void
+          serializedBytes: 
+          references: []
+        attributes: []
+        genericParameters: []
+    - rid: 508112214908207119
+      type: {class: Function, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: Hide
+        _id: 11
+        _comment: 
+        _parent:
+          rid: 508112214908207107
+        childs:
+        - rid: 508112214908207128
+        - rid: 508112214908207177
+        expanded: 1
+        parameters:
+        - _id: 3e09807c3155cdba
+          name: Containerbehaviour
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.ContainerBehaviour
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        - _id: 744de56d6dd52fce
+          name: Canvas
+          summary: 
+          type:
+            kind: 1
+            serializedString: UnityEngine.Canvas
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        modifier:
+          Public: 1
+          Private: 0
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Unsafe: 0
+          Virtual: 0
+          Abstract: 0
+          Extern: 0
+          New: 0
+          Override: 0
+          Partial: 0
+          Sealed: 0
+          Async: 0
+        returnType:
+          kind: 1
+          serializedString: System.Void
+          serializedBytes: 
+          references: []
+        attributes: []
+        genericParameters: []
+    - rid: 508112214908207120
+      type: {class: Function, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: Hide
+        _id: 12
+        _comment: displayes the given container, with canvas options
+        _parent:
+          rid: 508112214908207107
+        childs:
+        - rid: 508112214908207129
+        - rid: 508112214908207178
+        expanded: 1
+        parameters:
+        - _id: ffbbbc62bbf220a
+          name: Containerbehaviour
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.ContainerBehaviour
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        - _id: 2c0f6b59378512d6
+          name: Canvas
+          summary: 
+          type:
+            kind: 1
+            serializedString: UnityEngine.Canvas
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        - _id: 253e7d6e67959d72
+          name: SlotContext
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.SlotContext
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        modifier:
+          Public: 1
+          Private: 0
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Unsafe: 0
+          Virtual: 0
+          Abstract: 0
+          Extern: 0
+          New: 0
+          Override: 0
+          Partial: 0
+          Sealed: 0
+          Async: 0
+        returnType:
+          kind: 1
+          serializedString: System.Void
+          serializedBytes: 
+          references: []
+        attributes: []
+        genericParameters: []
+    - rid: 508112214908207121
+      type: {class: MainGraphContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 22
+        _comment: 
+        _parent:
+          rid: 508112214908207108
+        childs: []
+        expanded: 1
+    - rid: 508112214908207122
+      type: {class: NodeObject, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 13
+        _comment: 
+        _parent:
+          rid: 508112214908207113
+        childs: []
+        expanded: 1
+        nodeExpanded: 1
+        position:
+          serializedVersion: 2
+          x: 0
+          y: 0
+          width: 200
+          height: 100
+        _nodeSerializedData:
+          data: 022f0000000001340000004d00610078007900470061006d00650073002e0055004e006f00640065002e004e006f006400650073002e00460075006e006300740069006f006e0045006e007400720079004e006f00640065002c00200075004e006f006400650033002e0043006f00720065000000000005
+          serializedReferences: []
+          serializedValueInput: []
+          serializedValueOutput: []
+          serializedFlowInput: []
+          serializedFlowOutput:
+          - rid: 508112214908207130
+          serializedType: MaxyGames.UNode.Nodes.FunctionEntryNode
+        _invalidPorts: []
+    - rid: 508112214908207123
+      type: {class: NodeObject, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 14
+        _comment: 
+        _parent:
+          rid: 508112214908207114
+        childs: []
+        expanded: 1
+        nodeExpanded: 1
+        position:
+          serializedVersion: 2
+          x: 18
+          y: -142
+          width: 155
+          height: 83
+        _nodeSerializedData:
+          data: 022f0000000001340000004d00610078007900470061006d00650073002e0055004e006f00640065002e004e006f006400650073002e00460075006e006300740069006f006e0045006e007400720079004e006f00640065002c00200075004e006f006400650033002e0043006f00720065000000000005
+          serializedReferences: []
+          serializedValueInput: []
+          serializedValueOutput:
+          - rid: 508112214908207131
+          serializedFlowInput: []
+          serializedFlowOutput:
+          - rid: 508112214908207132
+          serializedType: MaxyGames.UNode.Nodes.FunctionEntryNode
+        _invalidPorts: []
+    - rid: 508112214908207124
+      type: {class: NodeObject, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 15
+        _comment: 
+        _parent:
+          rid: 508112214908207115
+        childs: []
+        expanded: 1
+        nodeExpanded: 1
+        position:
+          serializedVersion: 2
+          x: 21
+          y: -228.44
+          width: 155
+          height: 107
+        _nodeSerializedData:
+          data: 022f0000000001340000004d00610078007900470061006d00650073002e0055004e006f00640065002e004e006f006400650073002e00460075006e006300740069006f006e0045006e007400720079004e006f00640065002c00200075004e006f006400650033002e0043006f00720065000000000005
+          serializedReferences: []
+          serializedValueInput: []
+          serializedValueOutput:
+          - rid: 508112214908207133
+          - rid: 508112214908207134
+          serializedFlowInput: []
+          serializedFlowOutput:
+          - rid: 508112214908207135
+          serializedType: MaxyGames.UNode.Nodes.FunctionEntryNode
+        _invalidPorts: []
+    - rid: 508112214908207125
+      type: {class: NodeObject, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 16
+        _comment: 
+        _parent:
+          rid: 508112214908207116
+        childs: []
+        expanded: 1
+        nodeExpanded: 1
+        position:
+          serializedVersion: 2
+          x: 6
+          y: -77
+          width: 155
+          height: 131
+        _nodeSerializedData:
+          data: 022f0000000001340000004d00610078007900470061006d00650073002e0055004e006f00640065002e004e006f006400650073002e00460075006e006300740069006f006e0045006e007400720079004e006f00640065002c00200075004e006f006400650033002e0043006f00720065000000000005
+          serializedReferences: []
+          serializedValueInput: []
+          serializedValueOutput:
+          - rid: 508112214908207136
+          - rid: 508112214908207137
+          - rid: 508112214908207138
+          serializedFlowInput: []
+          serializedFlowOutput:
+          - rid: 508112214908207139
+          serializedType: MaxyGames.UNode.Nodes.FunctionEntryNode
+        _invalidPorts: []
+    - rid: 508112214908207126
+      type: {class: NodeObject, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 17
+        _comment: 
+        _parent:
+          rid: 508112214908207117
+        childs: []
+        expanded: 1
+        nodeExpanded: 1
+        position:
+          serializedVersion: 2
+          x: 0
+          y: 0
+          width: 200
+          height: 100
+        _nodeSerializedData:
+          data: 022f0000000001340000004d00610078007900470061006d00650073002e0055004e006f00640065002e004e006f006400650073002e00460075006e006300740069006f006e0045006e007400720079004e006f00640065002c00200075004e006f006400650033002e0043006f00720065000000000005
+          serializedReferences: []
+          serializedValueInput: []
+          serializedValueOutput: []
+          serializedFlowInput: []
+          serializedFlowOutput:
+          - rid: 508112214908207140
+          serializedType: MaxyGames.UNode.Nodes.FunctionEntryNode
+        _invalidPorts: []
+    - rid: 508112214908207127
+      type: {class: NodeObject, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 18
+        _comment: 
+        _parent:
+          rid: 508112214908207118
+        childs: []
+        expanded: 1
+        nodeExpanded: 1
+        position:
+          serializedVersion: 2
+          x: 0
+          y: 0
+          width: 200
+          height: 100
+        _nodeSerializedData:
+          data: 022f0000000001340000004d00610078007900470061006d00650073002e0055004e006f00640065002e004e006f006400650073002e00460075006e006300740069006f006e0045006e007400720079004e006f00640065002c00200075004e006f006400650033002e0043006f00720065000000000005
+          serializedReferences: []
+          serializedValueInput: []
+          serializedValueOutput:
+          - rid: 508112214908207141
+          serializedFlowInput: []
+          serializedFlowOutput:
+          - rid: 508112214908207142
+          serializedType: MaxyGames.UNode.Nodes.FunctionEntryNode
+        _invalidPorts: []
+    - rid: 508112214908207128
+      type: {class: NodeObject, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 19
+        _comment: 
+        _parent:
+          rid: 508112214908207119
+        childs: []
+        expanded: 1
+        nodeExpanded: 1
+        position:
+          serializedVersion: 2
+          x: 0
+          y: 0
+          width: 200
+          height: 100
+        _nodeSerializedData:
+          data: 022f0000000001340000004d00610078007900470061006d00650073002e0055004e006f00640065002e004e006f006400650073002e00460075006e006300740069006f006e0045006e007400720079004e006f00640065002c00200075004e006f006400650033002e0043006f00720065000000000005
+          serializedReferences: []
+          serializedValueInput: []
+          serializedValueOutput:
+          - rid: 508112214908207143
+          - rid: 508112214908207144
+          serializedFlowInput: []
+          serializedFlowOutput:
+          - rid: 508112214908207145
+          serializedType: MaxyGames.UNode.Nodes.FunctionEntryNode
+        _invalidPorts: []
+    - rid: 508112214908207129
+      type: {class: NodeObject, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 20
+        _comment: 
+        _parent:
+          rid: 508112214908207120
+        childs: []
+        expanded: 1
+        nodeExpanded: 1
+        position:
+          serializedVersion: 2
+          x: 0
+          y: 0
+          width: 200
+          height: 100
+        _nodeSerializedData:
+          data: 022f0000000001340000004d00610078007900470061006d00650073002e0055004e006f00640065002e004e006f006400650073002e00460075006e006300740069006f006e0045006e007400720079004e006f00640065002c00200075004e006f006400650033002e0043006f00720065000000000005
+          serializedReferences: []
+          serializedValueInput: []
+          serializedValueOutput:
+          - rid: 508112214908207146
+          - rid: 508112214908207147
+          - rid: 508112214908207148
+          serializedFlowInput: []
+          serializedFlowOutput:
+          - rid: 508112214908207149
+          serializedType: MaxyGames.UNode.Nodes.FunctionEntryNode
+        _invalidPorts: []
+    - rid: 508112214908207130
+      type: {class: FlowOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: exit
+        _name: 
+        connections: []
+    - rid: 508112214908207131
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 6d50b16f31178fd3
+        _name: Containerbehaviour
+        connections: []
+    - rid: 508112214908207132
+      type: {class: FlowOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: exit
+        _name: 
+        connections: []
+    - rid: 508112214908207133
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 5dc0a38f72164d8d
+        _name: Containerbehaviour
+        connections: []
+    - rid: 508112214908207134
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 4912635336a29a66
+        _name: Canvas
+        connections: []
+    - rid: 508112214908207135
+      type: {class: FlowOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: exit
+        _name: 
+        connections: []
+    - rid: 508112214908207136
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 3e2081b0f680af5
+        _name: Containerbehaviour
+        connections: []
+    - rid: 508112214908207137
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 45e727bc5d7085a8
+        _name: Canvas
+        connections: []
+    - rid: 508112214908207138
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 72110e401115cabb
+        _name: SlotContext
+        connections: []
+    - rid: 508112214908207139
+      type: {class: FlowOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: exit
+        _name: 
+        connections: []
+    - rid: 508112214908207140
+      type: {class: FlowOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: exit
+        _name: 
+        connections: []
+    - rid: 508112214908207141
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 3163a7992599452c
+        _name: containerBehaviour
+        connections: []
+    - rid: 508112214908207142
+      type: {class: FlowOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: exit
+        _name: 
+        connections: []
+    - rid: 508112214908207143
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 3e09807c3155cdba
+        _name: Containerbehaviour
+        connections: []
+    - rid: 508112214908207144
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 744de56d6dd52fce
+        _name: Canvas
+        connections: []
+    - rid: 508112214908207145
+      type: {class: FlowOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: exit
+        _name: 
+        connections: []
+    - rid: 508112214908207146
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: ffbbbc62bbf220a
+        _name: Containerbehaviour
+        connections: []
+    - rid: 508112214908207147
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 2c0f6b59378512d6
+        _name: Canvas
+        connections: []
+    - rid: 508112214908207148
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 253e7d6e67959d72
+        _name: SlotContext
+        connections: []
+    - rid: 508112214908207149
+      type: {class: FlowOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: exit
+        _name: 
+        connections: []
+    - rid: 508112214908207157
+      type: {class: VariableContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 25
+        _comment: 
+        _parent:
+          rid: 508112214908207113
+        childs: []
+        expanded: 1
+    - rid: 508112214908207158
+      type: {class: VariableContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 26
+        _comment: 
+        _parent:
+          rid: 508112214908207114
+        childs: []
+        expanded: 1
+    - rid: 508112214908207159
+      type: {class: VariableContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 27
+        _comment: 
+        _parent:
+          rid: 508112214908207115
+        childs: []
+        expanded: 1
+    - rid: 508112214908207160
+      type: {class: VariableContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 28
+        _comment: 
+        _parent:
+          rid: 508112214908207116
+        childs: []
+        expanded: 1
+    - rid: 508112214908207161
+      type: {class: Function, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: Display
+        _id: 29
+        _comment: displayes the given container, with canvas options
+        _parent:
+          rid: 508112214908207107
+        childs:
+        - rid: 508112214908207162
+        - rid: 508112214908207163
+        expanded: 1
+        parameters:
+        - _id: 3e2081b0f680af5
+          name: Containerbehaviour
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.ContainerBehaviour
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        - _id: 72110e401115cabb
+          name: SlotContext
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.SlotContext
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        modifier:
+          Public: 1
+          Private: 0
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Unsafe: 0
+          Virtual: 0
+          Abstract: 0
+          Extern: 0
+          New: 0
+          Override: 0
+          Partial: 0
+          Sealed: 0
+          Async: 0
+        returnType:
+          kind: 1
+          serializedString: System.Void
+          serializedBytes: 
+          references: []
+        attributes: []
+        genericParameters: []
+    - rid: 508112214908207162
+      type: {class: NodeObject, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 30
+        _comment: 
+        _parent:
+          rid: 508112214908207161
+        childs: []
+        expanded: 1
+        nodeExpanded: 1
+        position:
+          serializedVersion: 2
+          x: 6
+          y: -77
+          width: 155
+          height: 131
+        _nodeSerializedData:
+          data: 022f0000000001340000004d00610078007900470061006d00650073002e0055004e006f00640065002e004e006f006400650073002e00460075006e006300740069006f006e0045006e007400720079004e006f00640065002c00200075004e006f006400650033002e0043006f00720065000000000005
+          serializedReferences: []
+          serializedValueInput: []
+          serializedValueOutput:
+          - rid: 508112214908207164
+          - rid: 508112214908207166
+          serializedFlowInput: []
+          serializedFlowOutput:
+          - rid: 508112214908207167
+          serializedType: MaxyGames.UNode.Nodes.FunctionEntryNode
+        _invalidPorts:
+        - rid: 508112214908207165
+    - rid: 508112214908207163
+      type: {class: VariableContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 31
+        _comment: 
+        _parent:
+          rid: 508112214908207161
+        childs: []
+        expanded: 1
+    - rid: 508112214908207164
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 3e2081b0f680af5
+        _name: Containerbehaviour
+        connections: []
+    - rid: 508112214908207165
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 45e727bc5d7085a8
+        _name: Canvas
+        connections: []
+    - rid: 508112214908207166
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 72110e401115cabb
+        _name: SlotContext
+        connections: []
+    - rid: 508112214908207167
+      type: {class: FlowOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: exit
+        _name: 
+        connections: []
+    - rid: 508112214908207175
+      type: {class: VariableContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 32
+        _comment: 
+        _parent:
+          rid: 508112214908207117
+        childs: []
+        expanded: 1
+    - rid: 508112214908207176
+      type: {class: VariableContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 33
+        _comment: 
+        _parent:
+          rid: 508112214908207118
+        childs: []
+        expanded: 1
+    - rid: 508112214908207177
+      type: {class: VariableContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 34
+        _comment: 
+        _parent:
+          rid: 508112214908207119
+        childs: []
+        expanded: 1
+    - rid: 508112214908207178
+      type: {class: VariableContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 35
+        _comment: 
+        _parent:
+          rid: 508112214908207120
+        childs: []
+        expanded: 1
+    - rid: 508112214908207179
+      type: {class: Function, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: Hide
+        _id: 36
+        _comment: displayes the given container, with canvas options
+        _parent:
+          rid: 508112214908207107
+        childs:
+        - rid: 508112214908207180
+        - rid: 508112214908207181
+        expanded: 1
+        parameters:
+        - _id: ffbbbc62bbf220a
+          name: Containerbehaviour
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.ContainerBehaviour
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        - _id: 253e7d6e67959d72
+          name: SlotContext
+          summary: 
+          type:
+            kind: 1
+            serializedString: InventoryModule.SlotContext
+            serializedBytes: 
+            references: []
+          refKind: 0
+          useInInitializer: 0
+          hasDefaultValue: 0
+          serializedDefaultValue:
+            serializedData:
+              format: 0
+              references: []
+              data: 
+              serializationNodes: []
+              serializedType: 
+            serializedType:
+              kind: 0
+              serializedString: 
+              serializedBytes: 
+              references: []
+        modifier:
+          Public: 1
+          Private: 0
+          Protected: 0
+          Internal: 0
+          Static: 0
+          Unsafe: 0
+          Virtual: 0
+          Abstract: 0
+          Extern: 0
+          New: 0
+          Override: 0
+          Partial: 0
+          Sealed: 0
+          Async: 0
+        returnType:
+          kind: 1
+          serializedString: System.Void
+          serializedBytes: 
+          references: []
+        attributes: []
+        genericParameters: []
+    - rid: 508112214908207180
+      type: {class: NodeObject, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 37
+        _comment: 
+        _parent:
+          rid: 508112214908207179
+        childs: []
+        expanded: 1
+        nodeExpanded: 1
+        position:
+          serializedVersion: 2
+          x: 0
+          y: 0
+          width: 200
+          height: 100
+        _nodeSerializedData:
+          data: 022f0000000001340000004d00610078007900470061006d00650073002e0055004e006f00640065002e004e006f006400650073002e00460075006e006300740069006f006e0045006e007400720079004e006f00640065002c00200075004e006f006400650033002e0043006f00720065000000000005
+          serializedReferences: []
+          serializedValueInput: []
+          serializedValueOutput:
+          - rid: 508112214908207182
+          - rid: 508112214908207184
+          serializedFlowInput: []
+          serializedFlowOutput:
+          - rid: 508112214908207185
+          serializedType: MaxyGames.UNode.Nodes.FunctionEntryNode
+        _invalidPorts:
+        - rid: 508112214908207183
+    - rid: 508112214908207181
+      type: {class: VariableContainer, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _name: 
+        _id: 38
+        _comment: 
+        _parent:
+          rid: 508112214908207179
+        childs: []
+        expanded: 1
+    - rid: 508112214908207182
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: ffbbbc62bbf220a
+        _name: Containerbehaviour
+        connections: []
+    - rid: 508112214908207183
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 2c0f6b59378512d6
+        _name: Canvas
+        connections: []
+    - rid: 508112214908207184
+      type: {class: ValueOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: 253e7d6e67959d72
+        _name: SlotContext
+        connections: []
+    - rid: 508112214908207185
+      type: {class: FlowOutput, ns: MaxyGames.UNode, asm: uNode3.Core}
+      data:
+        _id: exit
+        _name: 
+        connections: []

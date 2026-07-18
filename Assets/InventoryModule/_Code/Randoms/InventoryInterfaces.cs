@@ -6,9 +6,6 @@
 }
 
 
-
-
-
 namespace InventoryModule.Iterfaces
 {
     public interface IContainerIdentifier

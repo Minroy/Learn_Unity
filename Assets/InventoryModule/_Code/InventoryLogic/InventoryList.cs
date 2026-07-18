@@ -148,7 +148,7 @@ namespace InventoryModule
         /// This removes the Slot regardless it its dynamic or not (Aka deletes Slot)
         /// </summary>
         /// <param name="index"></param>
-        public void RemoveAtIndex(int index)
+        public void DeleteSlot(int index)
         {
             if (index < 0 || index >= Slots.Count) return;
             OnSlotsRemoved?.Invoke(index);
@@ -174,7 +174,7 @@ namespace InventoryModule
 
 
             if (Slots[index].IsEmpty && isDynamic)
-                RemoveAtIndex(index);
+                DeleteSlot(index);
         }
 
 
@@ -197,7 +197,7 @@ namespace InventoryModule
                 remaining = slot.SlotRemove(toRemove);
 
                 if (slot.IsEmpty && isDynamic && (MinSize < this.Count))
-                    RemoveAtIndex(i);
+                    DeleteSlot(i);
 
                 if (remaining <= 0) break;
             }

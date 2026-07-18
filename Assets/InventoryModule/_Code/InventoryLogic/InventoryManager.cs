@@ -18,10 +18,10 @@ namespace InventoryModule
 
 
         // the canvas where the inventoryLogic will work. 
-        public Canvas MainCanvas;
+        public static Canvas MainCanvas;
 
         // this is gonna be used for Displaying the contains in a container. 
-        public ContainerBehaviour DisplayerContainer; //Make a special CLass for this
+        public static ContainerBehaviour MainDisplayerContainer; //Make a special CLass for this
 
 
 
@@ -63,11 +63,11 @@ namespace InventoryModule
             if (!container.IsRegistered)
             {
                 Debug.Log($"[InventoryManager] Registering: {container.name}");
-                int childCount = container.gameObject.transform.childCount;
+                int childCount = container.SlotParent.childCount;
 
                 for (int i = 0; i < childCount; i++)
                 {
-                    if (container.gameObject.transform.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
+                    if (container.SlotParent.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
                     {
                         slotUI.Bind(container, container.GetSlot(i));
                     }
@@ -84,11 +84,11 @@ namespace InventoryModule
             if (container.IsRegistered)
             {
                 Debug.Log($"[InventoryManager] Unregistering: {container.name}");
-                int childCount = container.gameObject.transform.childCount;
+                int childCount = container.SlotParent.childCount;
 
                 for (int i = 0; i < childCount; i++)
                 {
-                    if (container.gameObject.transform.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
+                    if (container.SlotParent.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
                     {
                         slotUI.UnBind();
                     }
@@ -103,9 +103,9 @@ namespace InventoryModule
         /// </summary>
         public static void BindSingleSlot(ContainerBehaviour container, int index)
         {
-            if (index < 0 || index >= container.gameObject.transform.childCount) return;
+            if (index < 0 || index >= container.SlotParent.childCount) return;
 
-            if (container.gameObject.transform.GetChild(index).TryGetComponent<SlotsUI>(out var slotUI))
+            if (container.SlotParent.GetChild(index).TryGetComponent<SlotsUI>(out var slotUI))
             {
                 slotUI.Bind(container, container.GetSlot(index));
             }
@@ -116,9 +116,9 @@ namespace InventoryModule
         /// </summary>
         public static void UnBindSingleSlot(ContainerBehaviour container, int index)
         {
-            if (index < 0 || index >= container.gameObject.transform.childCount) return;
+            if (index < 0 || index >= container.SlotParent.childCount) return;
 
-            if (container.gameObject.transform.GetChild(index).TryGetComponent<SlotsUI>(out var slotUI))
+            if (container.SlotParent.GetChild(index).TryGetComponent<SlotsUI>(out var slotUI))
             {
                 slotUI.UnBind();
             }
@@ -131,12 +131,12 @@ namespace InventoryModule
         {
             if (container == null) return;
 
-            int childCount = container.gameObject.transform.childCount;
+            int childCount = container.SlotParent.childCount;
 
             // 1. Force unbind all current UI elements to clear dirty states
             for (int i = 0; i < childCount; i++)
             {
-                if (container.gameObject.transform.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
+                if (container.SlotParent.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
                     slotUI.UnBind();
             }
 
@@ -147,7 +147,7 @@ namespace InventoryModule
             // 2. Freshly bind every UI slot to its exact, current data index
             for (int i = 0; i < childCount; i++)
             {
-                if (container.gameObject.transform.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
+                if (container.SlotParent.GetChild(i).TryGetComponent<SlotsUI>(out var slotUI))
                 {
                     slotUI.Bind(container, container.GetSlot(i));
                 }
