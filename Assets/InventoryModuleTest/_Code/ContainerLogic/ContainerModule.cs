@@ -1,4 +1,6 @@
-﻿using InventoryModule.Iterfaces;
+﻿#pragma warning disable
+using InventoryModule.Iterfaces;
+
 using System;
 using UnityEngine;
 

@@ -438,7 +438,7 @@ MonoBehaviour:
   ShowInEditor: 0
   isDynamic: 0
   SlotPrefab: {fileID: 6666528756529969369, guid: 59f181098997c1b4a91447b418f728de, type: 3}
-  StartSize: 18
+  StartSize: 27
   quickTransferContainer: {fileID: 0}
 --- !u!65 &741246609
 BoxCollider:
