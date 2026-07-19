@@ -7,6 +7,11 @@ namespace InventoryModule
 {
     public class InventoryList : IEnumerable<Slot>
     {
+        public event Action<int> OnSlotsAdd;
+        public event Action<int> OnSlotsRemoved;
+        public event Action onSlotsUpdated;
+
+
         private readonly List<Slot> Slots;
         private ContainerBehaviour ContainerRef = null;
 
@@ -32,9 +37,7 @@ namespace InventoryModule
             }
         }
 
-        public event Action<int> OnSlotsAdd;
-        public event Action<int> OnSlotsRemoved;
-        public event Action onSlotsUpdated;
+        
 
 
         public InventoryList()
@@ -93,7 +96,7 @@ namespace InventoryModule
             // Pass 3: If there is no empty slots, and inventory is dynamic Add new slots and fill them.
             if (remaining > 0 && isDynamic)
             {
-                int slotsNeeded = Mathf.CeilToInt((float)remaining / item.MaxAmount); // check how many Slots you need
+                int slotsNeeded = Mathf.CeilToInt((float)remaining / item.MaxAmount); // check how many Data you need
 
                 remaining = DynamicAdd(item, remaining, slotsNeeded);
                 OnSlotsAdd?.Invoke(slotsNeeded); // fire event to notify how many slots should be made.

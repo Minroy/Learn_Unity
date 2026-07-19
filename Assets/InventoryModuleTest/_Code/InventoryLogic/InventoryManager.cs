@@ -155,7 +155,7 @@ namespace InventoryModule
         }
 
         /// <summary>
-        /// Registers the Containers with their respective Slots data.
+        /// Registers the Containers with their respective Data data.
         /// </summary>
         public static void Register(params ContainerBehaviour[] containers)
         {
