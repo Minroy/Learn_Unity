@@ -11,11 +11,11 @@ namespace InventoryModule.Generics.Data
         public int Amount { get; set; }
         public T Item { get; set; }
 
-        public bool IsEmpty => Item == null;
+        public readonly bool IsEmpty => Item == null;
 
-        public bool IsFull => Item != null && Item.MaxAmount == Amount;
+        public readonly bool IsFull => Item != null && Item.MaxAmount == Amount;
 
-        public int SpaceLeft => Item == null ? 0 : Item.MaxAmount - Amount;
+        public readonly int SpaceLeft => Item == null ? 0 : Item.MaxAmount - Amount;
 
         public int Add(T item, int amount)
         {
@@ -28,18 +28,9 @@ namespace InventoryModule.Generics.Data
                 Item = item;
                 Amount = 0;
             }
-            // If it's a completely different data, we can't stack it here. Return everything.
-            else if (Item.Id != item.Id)
-            {
-                return amount;
-            }
-
-            // Calculate exactly what can fit using integer math
             int toAdd = Math.Min(amount, SpaceLeft);
 
             Amount += toAdd;
-
-            // Return the remainder that couldn't fit
             return amount - toAdd;
         }
 

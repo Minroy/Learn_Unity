@@ -1,15 +1,21 @@
 #pragma warning disable
-using UnityEngine;
-using System.Collections.Generic;
 using InventoryModule;
+using System.Collections.Generic;
 using System.ComponentModel;
+using UnityEngine;
 
 namespace InventoryModule.Windows {
 	/// <summary> This displays a Containers internal List. </summary>
 	[RequireComponent(typeof(CanvasGroup))]
-	public class DisplayModule : InventoryModuleBase {	
+	public abstract class DisplayModule : InventoryModuleBase {	
+		private ContainerBehaviour CurrentContainer;
+		private CanvasGroup CanvasGroup;
+		
 		/// <summary> displayes the given container </summary>
-		public void Display(ContainerBehaviour newParameter) {
+		public void Display() {
+		}
+
+		public void Display(ContainerBehaviour Containerbehaviour) {
 		}
 
 		/// <summary> displayes the given container, with canvas options </summary>
@@ -20,12 +26,27 @@ namespace InventoryModule.Windows {
 		public void Display(ContainerBehaviour Containerbehaviour, Canvas Canvas, SlotContext SlotContext) {
 		}
 
+		/// <summary> displayes the given container, with canvas options </summary>
+		public void Display(ContainerBehaviour Containerbehaviour, SlotContext SlotContext) {
+		}
+
 		/// <summary> Hides the current Container </summary>
 		public void Hide() {
 		}
 
 		/// <summary> Hides the current Container </summary>
-		public void Hide(object parameter) {
+		public void Hide(ContainerBehaviour containerBehaviour) {
+		}
+
+		public void Hide(ContainerBehaviour Containerbehaviour, Canvas Canvas) {
+		}
+
+		/// <summary> displayes the given container, with canvas options </summary>
+		public void Hide(ContainerBehaviour Containerbehaviour, SlotContext SlotContext) {
+		}
+
+		/// <summary> displayes the given container, with canvas options </summary>
+		public void Hide(ContainerBehaviour Containerbehaviour, Canvas Canvas, SlotContext SlotContext) {
 		}
 	}
 

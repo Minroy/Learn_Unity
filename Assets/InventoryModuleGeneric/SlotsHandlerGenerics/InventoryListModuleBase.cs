@@ -1,3 +1,5 @@
+#pragma warning disable
+
 using InventoryModule.Generics.Interfaces;
 using System;
 using System.Collections;
@@ -8,17 +10,10 @@ namespace InventoryModule.Generics.Data
     /// <summary>
     /// A base Class that All Custom Inventory List Inherit form
     /// </summary>
-    /// <typeparam name="T"> type of IItemData only</typeparam>
     public abstract class InventoryListModuleBase<T> : IEnumerable<T> where T : IItemData
     {
-        public int Count { get; }
+        public abstract int Length { get; }
         public abstract bool IsFull {  get; }
-
-        public int aaia;
-        
-
-
-
 
         public event Action<int> OnSlotsAdd;
         public event Action<int> OnSlotsRemoved;
@@ -91,6 +86,12 @@ namespace InventoryModule.Generics.Data
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
+        }
+
+        public void CheckNullOrEmpty(T item, int amount)
+        {
+            if (item == null) throw new ArgumentNullException($"{nameof(T)} is null");
+            else if (amount < 0) throw new Exception("amount negative");
         }
     }
 }

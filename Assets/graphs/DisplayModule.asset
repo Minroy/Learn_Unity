@@ -77,7 +77,7 @@ MonoBehaviour:
   scriptData:
     fileName: DisplayModule
     selfTypeData:
-      typeName: 
+      typeName: InventoryModule.Windows.DisplayModule
       reference: {fileID: 0}
     typeDatas: []
     debug: 0

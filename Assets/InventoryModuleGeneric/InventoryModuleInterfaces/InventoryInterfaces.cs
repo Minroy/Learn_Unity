@@ -1,18 +1,31 @@
 using TMPro;
 using UnityEngine;
+using System.Runtime.CompilerServices;
 
 namespace InventoryModule.Generics.Interfaces
 {
 
+    [System.Serializable]
+    public struct InstanceIDStruct<T>
+    {
+        public int InstanceID;
+        public T Data; // custom data the devs, that automatically adds itself
+    }
+
+    public interface IItemInstanceID<T>
+    {
+    }
+
     /// <summary>
-    /// This interfaces makes it as a item
+    /// This interfaces makes it as a item, ID is Auto-generated
     /// </summary>
     public interface IItemData
     {
-        string Id { get; set; }
-        int MaxAmount { get; set; }
+        int ItemID { get;}
+        int MaxAmount { get; }
         Sprite Icon { get; }
-
+        public bool CanStackWith(IItemData other);
+        public void SetID(int id);
     }
 
     public interface ISlotHandler<T> where T : IItemData
