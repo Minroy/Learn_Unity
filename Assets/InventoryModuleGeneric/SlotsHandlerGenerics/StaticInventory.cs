@@ -1,6 +1,5 @@
-﻿using InventoryModule.Generics.Interfaces;
+﻿using InventoryModule.IDSystem;
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace InventoryModule.Generics.Data

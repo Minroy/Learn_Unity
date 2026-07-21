@@ -1,8 +1,8 @@
 using InventoryModule.IDSystem;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "PotionSO", menuName = "Scriptable Objects/PotionSO")]
-public class PotionSO : ItemScriptableObject
+[CreateAssetMenu(fileName = "Arrows", menuName = "Scriptable Objects/Arrows")]
+public class Arrows : ItemScriptableObject
 {
     public override int MaxAmount => throw new System.NotImplementedException();
 

@@ -12,4 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0ad6901e89d3e0c4d87282dba30366a0, type: 3}
   m_Name: ItemRegisteryTool
   m_EditorClassIdentifier: 
-  _BakeditemRegistery: []
+  InventoryItems:
+  - {fileID: 11400000, guid: 941d8b0bce067ae4fb29c6788cf9c503, type: 2}
+  - {fileID: 11400000, guid: b94bdf5e3a8eaff49b93e18caa606c2e, type: 2}
+  - {fileID: 11400000, guid: ad72b141618c45a4599fa729dddbcba0, type: 2}
+  - {fileID: 11400000, guid: 2f70eebe47bdabc4094fa0e72500e3e8, type: 2}
+  - {fileID: 11400000, guid: 07dd4903f7d7cb54d879ae2306ae822c, type: 2}
+  - {fileID: 11400000, guid: 3d207c846bdae1147a44102ff379609d, type: 2}
+  - {fileID: 11400000, guid: 464512746f7381f41a6c40afc5ca3e2a, type: 2}
+  - {fileID: 11400000, guid: 0181838d180fc094cb5e2676c4fc349d, type: 2}

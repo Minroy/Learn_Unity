@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 using System.Runtime.CompilerServices;
 
-namespace InventoryModule.Generics.Interfaces
+namespace InventoryModule.IDSystem
 {
 
     [System.Serializable]
@@ -21,11 +21,11 @@ namespace InventoryModule.Generics.Interfaces
     /// </summary>
     public interface IItemData
     {
-        int ItemID { get;}
+        uint? ItemID { get; }
         int MaxAmount { get; }
         Sprite Icon { get; }
         public bool CanStackWith(IItemData other);
-        public void SetID(int id);
+        void SetID(uint id);
     }
 
     public interface ISlotHandler<T> where T : IItemData

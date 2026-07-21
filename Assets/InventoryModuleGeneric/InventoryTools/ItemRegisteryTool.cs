@@ -1,42 +1,52 @@
-
 #if UNITY_EDITOR
-using InventoryModule.Generics.Interfaces;
-using System;
+
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
-using static UnityEditor.Progress;
 
-[CreateAssetMenu(order = 3, fileName = "ItemRegisteryTool", menuName = "Inventory Items")]
-public class ItemRegisteryTool : ScriptableObject
+namespace InventoryModule.IDSystem
 {
-    [SerializeField] private List<ScriptableObject> _BakeditemRegistery = new List<ScriptableObject>();
-
-
-    [ContextMenu(nameof(GenerateID))]
-    private void GenerateID()
+    [CreateAssetMenu(order = 3, fileName = "ItemRegisteryTool", menuName = "Inventory Items")]
+    public class ItemRegisteryTool : ScriptableObject
     {
-        _BakeditemRegistery.Clear();
-        var assets = AssetDatabase.FindAssets("t:ScriptableObject");
-        int CurrentId = 0;
+        [SerializeField] private List<ScriptableObject> InventoryItems = new List<ScriptableObject>();
 
-        foreach (var guid in assets)
+        ////To-Do Low : Store keys to prevent dupication, and handle removal. SO
+        ///Save_System does not curropt.
+        //[SerializeField, HideInInspector]
+        //private Dictionary<uint, ScriptableObject> _GlobalItemLookUp = new();
+
+
+        /// <summary>
+        /// Generates unique ID for each item. 
+        /// </summary>
+        [ContextMenu(nameof(GenerateID))]
+        private void GenerateID()
         {
+            InventoryItems.Clear();
+            var assets = AssetDatabase.FindAssets("t:ScriptableObject");
+            uint CurrentId = 0;
 
-            var path = AssetDatabase.GUIDToAssetPath(guid); // why load a asset part first is the Item isnt even a IItemData
+            foreach (var guid in assets)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
 
-            ScriptableObject asset =
-                AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                ScriptableObject asset =
+                    AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
 
-            if (asset is not IItemData itemData) continue; //first we check if the IItemHas a ID. if it does then we skip. it it dont. then we assign.
-            itemData.SetID(CurrentId);
-            EditorUtility.SetDirty(asset);
-            Debug.Log($"{asset.name} assigned ID {CurrentId}");
+                if (asset is not IItemData itemData) continue; //first we check if the IItemHas a ID. if it does then we skip. it it dont. then we assign.
+               
 
-            CurrentId++;
-            _BakeditemRegistery.Add(asset);
+                itemData.SetID(CurrentId);
+                EditorUtility.SetDirty(asset);
+                Debug.Log($"{asset.name} assigned ID {CurrentId}");
+                InventoryItems.Add(asset);
+
+                CurrentId++;
+            }
+            AssetDatabase.SaveAssets();
         }
-        AssetDatabase.SaveAssets();
     }
 }
 #endif
