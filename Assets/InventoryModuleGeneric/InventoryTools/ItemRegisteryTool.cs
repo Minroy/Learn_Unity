@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
@@ -22,7 +23,7 @@ namespace InventoryModule.IDSystem
         /// Generates unique ID for each item. 
         /// </summary>
         [ContextMenu(nameof(GenerateID))]
-        private void GenerateID()
+        private async Task GenerateID()
         {
             InventoryItems.Clear();
             var assets = AssetDatabase.FindAssets("t:ScriptableObject");
@@ -32,12 +33,12 @@ namespace InventoryModule.IDSystem
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
 
-                ScriptableObject asset =
+                ScriptableObject asset = 
                     AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
 
                 if (asset is not IItemData itemData) continue; //first we check if the IItemHas a ID. if it does then we skip. it it dont. then we assign.
-               
 
+                await Task.Yield();
                 itemData.SetID(CurrentId);
                 EditorUtility.SetDirty(asset);
                 Debug.Log($"{asset.name} assigned ID {CurrentId}");

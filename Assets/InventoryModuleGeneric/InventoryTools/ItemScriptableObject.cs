@@ -1,5 +1,5 @@
 ﻿#pragma warning disable
-using InventoryModule.Generics;
+using InventoryModule;
 using System;
 using UnityEngine;
 
@@ -17,13 +17,6 @@ namespace InventoryModule.IDSystem
         public abstract int MaxAmount { get; }
 
         public abstract Sprite Icon { get; }
-
-        public virtual bool CanStackWith(IItemData other)
-        {
-            if(other == null) throw new ArgumentNullException(other.ItemID + "is null");
-
-            return other.ItemID == itemId;
-        }
 
         //expicit to prevent external for rewriting 
         void IItemData.SetID(uint id)

@@ -1,7 +1,7 @@
 using InventoryModule.IDSystem;
 using System;
 
-namespace InventoryModule.Generics.Data
+namespace InventoryModule.Data
 {
     /// <summary>
     /// A defualt Premade slot, Made my Icy. 
@@ -17,8 +17,10 @@ namespace InventoryModule.Generics.Data
 
         public readonly int SpaceLeft => Item == null ? 0 : Item.MaxAmount - Amount;
 
+        // return what cannot be added
         public int Add(T item, int amount)
         {
+            
             if (item == null) throw new ArgumentNullException(nameof(item));
             if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), "Cannot add negative amounts");
 

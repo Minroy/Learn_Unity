@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using System.Runtime.CompilerServices;
 
 namespace InventoryModule.IDSystem
 {
@@ -17,14 +16,13 @@ namespace InventoryModule.IDSystem
     }
 
     /// <summary>
-    /// This interfaces makes it as a item, ID is Auto-generated
+    /// This interfaces makes this object a item, ID is Auto-generated
     /// </summary>
     public interface IItemData
     {
         uint? ItemID { get; }
         int MaxAmount { get; }
         Sprite Icon { get; }
-        public bool CanStackWith(IItemData other);
         void SetID(uint id);
     }
 
