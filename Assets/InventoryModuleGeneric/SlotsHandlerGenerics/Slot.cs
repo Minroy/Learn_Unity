@@ -1,15 +1,16 @@
 using InventoryModule.IDSystem;
 using System;
+using UnityEngine;
 
 namespace InventoryModule.Data
 {
     /// <summary>
     /// A defualt Premade slot, Made my Icy. 
     /// </summary>
-    public struct Slot<T> : ISlotHandler<T> where T : IItemData
+    public struct Slot<T> : ISlotHandler<T> where T : IItem
     {
-        public int Amount { get; set; }
-        public T Item { get; set; }
+        public int Amount { get; private set; }
+        public T Item { get; private set; }
 
         public readonly bool IsEmpty => Item == null;
 
@@ -17,10 +18,12 @@ namespace InventoryModule.Data
 
         public readonly int SpaceLeft => Item == null ? 0 : Item.MaxAmount - Amount;
 
+        readonly IItem ISlotHandler.Item => Item;
+
         // return what cannot be added
         public int Add(T item, int amount)
         {
-            
+
             if (item == null) throw new ArgumentNullException(nameof(item));
             if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), "Cannot add negative amounts");
 
@@ -38,15 +41,12 @@ namespace InventoryModule.Data
 
         public void Clear()
         {
-            Item = default(T);
+            Item = default;
             Amount = 0;
         }
 
-        public T GetData()
-        {
-            return Item;
-        }
-
+        public readonly T GetData() => Item;
+        //Return what cannot be removed
         public int Remove(int amount)
         {
             if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
@@ -65,5 +65,6 @@ namespace InventoryModule.Data
             if (data == null) throw new ArgumentNullException(nameof(T));
             Item = data;
         }
+
     }
 }

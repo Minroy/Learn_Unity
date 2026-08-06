@@ -1,3 +1,4 @@
+using InventoryModule.IDSystem;
 using UnityEngine;
 
 public class TestCodeGenerics : MonoBehaviour
@@ -15,12 +16,30 @@ public class TestCodeGenerics : MonoBehaviour
     }
 }
 
-public class TestItems : MonoBehaviour
+public class TestItems : MonoBehaviour, IItem
 {
+    public uint? ItemID => throw new System.NotImplementedException();
 
+    public int MaxAmount => throw new System.NotImplementedException();
+
+    public Sprite Icon => throw new System.NotImplementedException();
+
+    public void SetID(uint id)
+    {
+        throw new System.NotImplementedException();
+    }
 }
 
-public class TestItem2 : MonoBehaviour
+public class TestItem2 : MonoBehaviour, IItem
 {
+    public uint? ItemID => throw new System.NotImplementedException();
 
+    public int MaxAmount => throw new System.NotImplementedException();
+
+    public Sprite Icon => throw new System.NotImplementedException();
+
+    public void SetID(uint id)
+    {
+        throw new System.NotImplementedException();
+    }
 }

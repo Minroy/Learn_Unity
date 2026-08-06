@@ -2,52 +2,173 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 
 namespace InventoryModule.IDSystem
 {
-    [CreateAssetMenu(order = 3, fileName = "ItemRegisteryTool", menuName = "Inventory Items")]
-    public class ItemRegisteryTool : ScriptableObject
+    [InitializeOnLoad]
+    [CreateAssetMenu(order = 3, fileName = "ItemRegistryTool", menuName = "ItemDataBase")]
+    public class ItemRegistryTool : ScriptableObject
     {
-        [SerializeField] private List<ScriptableObject> InventoryItems = new List<ScriptableObject>();
-
-        ////To-Do Low : Store keys to prevent dupication, and handle removal. SO
-        ///Save_System does not curropt.
-        //[SerializeField, HideInInspector]
-        //private Dictionary<uint, ScriptableObject> _GlobalItemLookUp = new();
-
+        [SerializeField]
+        private List<ScriptableObject> InventoryItems = new();
 
         /// <summary>
-        /// Generates unique ID for each item. 
+        /// Generates missing Item IDs using Asset GUID hashing.
+        /// Existing IDs are ignored.
         /// </summary>
         [ContextMenu(nameof(GenerateID))]
         private async Task GenerateID()
         {
             InventoryItems.Clear();
-            var assets = AssetDatabase.FindAssets("t:ScriptableObject");
-            uint CurrentId = 0;
 
+            string[] assets = AssetDatabase.FindAssets("t:ScriptableObject");
+            await Task.Yield();
+            short countToPuase = 500;
+
+            short currentCount = 0;
             foreach (var guid in assets)
             {
-                var path = AssetDatabase.GUIDToAssetPath(guid);
+                currentCount++;
+                string path = AssetDatabase.GUIDToAssetPath(guid);
 
-                ScriptableObject asset = 
+                ScriptableObject asset =
                     AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
 
-                if (asset is not IItemData itemData) continue; //first we check if the IItemHas a ID. if it does then we skip. it it dont. then we assign.
+                if (asset is not IItem itemData)
+                    continue;
 
-                await Task.Yield();
-                itemData.SetID(CurrentId);
+
+              
+                if (itemData.ItemID.HasValue)
+                {
+                    InventoryItems.Add(asset);
+                    continue;
+                }
+
+                if(currentCount >= countToPuase)
+                   {
+                        currentCount = 0;
+                        await Task.Yield();
+                   }
+
+
+                uint generatedID = Generate(guid);
+
+                itemData.SetID(generatedID);
+
                 EditorUtility.SetDirty(asset);
-                Debug.Log($"{asset.name} assigned ID {CurrentId}");
-                InventoryItems.Add(asset);
 
-                CurrentId++;
+                Debug.Log(
+                    $"{asset.name} assigned ItemID {generatedID}"
+                );
+
+
+                InventoryItems.Add(asset);
             }
+
             AssetDatabase.SaveAssets();
+
+            Debug.Log(
+                $"Item Registry Generated. Found {InventoryItems.Count} items."
+            );
         }
+
+        public static uint Generate(string guid)
+        {
+            unchecked
+            {
+                uint hash = 2166136261;
+
+                foreach (char c in guid)
+                {
+                    hash ^= c;
+                    hash *= 16777619;
+                }
+                return hash;
+            }
+        }
+    
+
+        static ItemRegistryTool()
+        {
+            Validate();
+        }
+
+         public static bool Validate()
+        {
+            string[] assets =
+                AssetDatabase.FindAssets("t:ScriptableObject");
+
+
+            Dictionary<uint, string> ids = new();
+
+
+            bool valid = true;
+
+
+            foreach(string guid in assets)
+            {
+                string path =
+                    AssetDatabase.GUIDToAssetPath(guid);
+
+
+                ScriptableObject asset =
+                    AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+
+
+                if(asset is not IItem item)
+                    continue;
+
+
+                if(!item.ItemID.HasValue)
+                {
+                    Debug.LogWarning(
+                        $"[InventoryModule] {asset.name} has no ItemID."
+                    );
+
+                    continue;
+                }
+
+
+                uint id = item.ItemID.Value;
+
+
+                if(ids.TryGetValue(id, out string existing))
+                {
+                    Debug.LogError(
+                        $"[InventoryModule] Duplicate ItemID detected!\n\n" +
+                        $"ID: {id}\n" +
+                        $"Item 1: {existing}\n" +
+                        $"Item 2: {path}"
+                    );
+
+                    valid = false;
+                }
+                else
+                {
+                    ids.Add(id, path);
+                }
+            }
+
+
+            if(valid)
+            {
+                Debug.Log(
+                    $"[InventoryModule] Validation passed. " +
+                    $"{ids.Count} IDs checked."
+                );
+            }
+
+
+            return valid;
+        }
+    
+        
     }
 }
+
+
+
 #endif

@@ -1,5 +1,8 @@
 using InventoryModule.Data;
 using InventoryModule.IDSystem;
+using InventoryModule.UI;
+using PurrNet.Collections;
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -11,67 +14,78 @@ namespace InventoryModule
     /// </summary>
     public class FixedInventory : InventoryListModuleBase
     {
-        protected Slot<IItemData>[] Slots;
+        protected Slot<IItem>[] Slots;
 
         public FixedInventory(int Size)
         {
-            Slots = new Slot<IItemData>[Size];
+            Slots = new Slot<IItem>[Size];
         }
 
-        public override int Length => Slots.Length;
+        protected override int Length => Slots.Length;
 
         //TODO:Low, Create a System that tells if its full or not
-        public override bool IsFull
+        protected override bool IsFull
         {
             get;
         }
 
 
-        public override int TryAdd<TAdd>(TAdd item, int amountToAdd)
+        protected override int TryAdd<TAdd>(TAdd item, int amountToAdd)
         {
-            if (CheckNullOrEmpty(item, amountToAdd)) return amountToAdd;
+            CheckNullOrEmpty(item, amountToAdd);
 
             int remaining = amountToAdd;
-            //Pass 1, Look for exsisting Slots containg this item
+
+            // Pass 1: existing slots with this item
             for (int i = 0; i < Slots.Length; i++)
             {
-                Slot<IItemData> slot = Slots[i];
-                if (remaining <= 0)
-                {
-                    break;
-                }
+                if (remaining <= 0) break;
 
-                if (slot.Item.ItemID == item.ItemID)
+                if (!Slots[i].IsEmpty && Slots[i].Item.ItemID == item.ItemID)
                 {
-                    remaining = slot.Add(item, remaining);
+                    remaining = Slots[i].Add(item, remaining); // operate directly on the array element
                 }
             }
 
-            //pass 2 : check for emptyslots
-            foreach (var slot in Slots)
+            // Pass 2: empty slots
+            for (int i = 0; i < Slots.Length; i++)
             {
-                if (remaining <= 0)
-                {
-                    break;
-                }
+                if (remaining <= 0) break;
 
-                if (slot.IsEmpty)
+                if (Slots[i].IsEmpty)
                 {
-                    remaining = slot.Add(item, remaining);
+                    remaining = Slots[i].Add(item, remaining);
                 }
             }
-
+            
             return remaining;
         }
 
-        public override void Clear()
+        protected override void Clear()
         {
-            throw new System.NotImplementedException();
+            for (int i = 0; i < Slots.Length; i++)
+            {
+                Slots[i].Clear();
+            }
         }
 
-        public override int Clear(int index)
+       
+        //protected virtual T ClearAndReturn<T>(int index)
+        //{
+           
+        //}
+
+
+        protected override void Clear(int index)
         {
-            throw new System.NotImplementedException();
+            Slots[index].Clear();
+        }
+
+        protected override int ClearAndReturn(int index)
+        {
+            int amount = Slots[index].Amount;
+            Slots[index].Clear();
+            return amount;
         }
 
         public override IEnumerator GetEnumerator()
@@ -79,36 +93,34 @@ namespace InventoryModule
             return Slots.GetEnumerator();
         }
 
-        public override T GetValue<T>(int index)
+        protected override T GetValue<T>(int index)
+        {
+            return (T)Slots[index].GetData();
+        }
+
+        protected override void GetValue<T>(int index, out T value)
         {
             throw new System.NotImplementedException();
         }
 
-        public override void GetValue<T>(int index, out T value)
+        protected override int RemoveAmountAt(int index, int amountToRemove)
+        {
+            throw new System.NotImplementedException();
+        }
+        protected override int TryAdd<TAdd>(TAdd item, int amountToAdd, int index)
         {
             throw new System.NotImplementedException();
         }
 
-        public override int RemoveAmountAt(int index, int amountToRemove)
+        protected override int TryRemove<TRemove>(TRemove item, int amountToRemove)
         {
             throw new System.NotImplementedException();
         }
 
-
-
-        public override int TryAdd<TAdd>(TAdd item, int amountToAdd, int index)
+        protected override int TryRemove<TRemove>(TRemove item, int amountToRemove, int index)
         {
             throw new System.NotImplementedException();
         }
 
-        public override int TryRemove<TRemove>(TRemove item, int amountToRemove)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public override int TryRemove<TRemove>(TRemove item, int amountToRemove, int index)
-        {
-            throw new System.NotImplementedException();
-        }
     }
 }

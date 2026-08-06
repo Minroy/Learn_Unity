@@ -1,3 +1,5 @@
+using InventoryModule.IDSystem;
+using System.Security.Cryptography.X509Certificates;
 using UnityEngine;
 using UnityEngine.UI;
 namespace InventoryModule.UI
@@ -33,8 +35,18 @@ namespace InventoryModule.UI
 
     }
 
-    public struct SlotContext
+    /// <summary>
+    /// A universal, SlotContext, that all IslotUIHandler Shares.
+    /// </summary>
+    partial struct UniSlotContext
     {
-      
+        public static IContainerIdentifier CurrentContainer;
+        public  static IContainerIdentifier DestinationContainer;
+
+        public static ISlotHandler CurrentSlot;
+        public static ISlotHandler DestinationSlot;
+
+
+        public static IItem CurrentItem;
     }
 }
