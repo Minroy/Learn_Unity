@@ -3,16 +3,19 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEditor;
+using UnityEditor.Build;
+using UnityEditor.Build.Reporting;
 using UnityEngine;
 
 namespace InventoryModule.IDSystem
 {
-    [InitializeOnLoad]
     [CreateAssetMenu(order = 3, fileName = "ItemRegistryTool", menuName = "ItemDataBase")]
     public class ItemRegistryTool : ScriptableObject
     {
         [SerializeField]
         private List<ScriptableObject> InventoryItems = new();
+
+
 
         /// <summary>
         /// Generates missing Item IDs using Asset GUID hashing.
@@ -21,8 +24,6 @@ namespace InventoryModule.IDSystem
         [ContextMenu(nameof(GenerateID))]
         private async Task GenerateID()
         {
-            InventoryItems.Clear();
-
             string[] assets = AssetDatabase.FindAssets("t:ScriptableObject");
             await Task.Yield();
             short countToPuase = 500;
@@ -40,18 +41,18 @@ namespace InventoryModule.IDSystem
                     continue;
 
 
-              
+
                 if (itemData.ItemID.HasValue)
                 {
                     InventoryItems.Add(asset);
                     continue;
                 }
 
-                if(currentCount >= countToPuase)
-                   {
-                        currentCount = 0;
-                        await Task.Yield();
-                   }
+                if (currentCount >= countToPuase)
+                {
+                    currentCount = 0;
+                    await Task.Yield();
+                }
 
 
                 uint generatedID = Generate(guid);
@@ -89,61 +90,43 @@ namespace InventoryModule.IDSystem
                 return hash;
             }
         }
-    
 
-        static ItemRegistryTool()
+
+        //Check If, 2 items have the Same ID. (Typically after Git commints it is useful)
+        [ContextMenu("Check For Dups")]
+        public void CheckValidate()
         {
             Validate();
         }
 
-         public static bool Validate()
+        public static bool Validate()
         {
-            string[] assets =
-                AssetDatabase.FindAssets("t:ScriptableObject");
-
-
+            string[] assets = AssetDatabase.FindAssets("t:ScriptableObject");
             Dictionary<uint, string> ids = new();
-
-
             bool valid = true;
+            int itemCount = 0;
 
-
-            foreach(string guid in assets)
+            foreach (string guid in assets)
             {
-                string path =
-                    AssetDatabase.GUIDToAssetPath(guid);
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                ScriptableObject asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
 
+                if (asset is not IItem item) continue;
 
-                ScriptableObject asset =
-                    AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                itemCount++;
 
-
-                if(asset is not IItem item)
-                    continue;
-
-
-                if(!item.ItemID.HasValue)
+                if (!item.ItemID.HasValue)
                 {
-                    Debug.LogWarning(
-                        $"[InventoryModule] {asset.name} has no ItemID."
-                    );
-
+                    Debug.LogWarning($"[InventoryModule] {asset.name} has no ItemID.");
+                    valid = false;
                     continue;
                 }
 
-
                 uint id = item.ItemID.Value;
 
-
-                if(ids.TryGetValue(id, out string existing))
+                if (ids.TryGetValue(id, out string existing))
                 {
-                    Debug.LogError(
-                        $"[InventoryModule] Duplicate ItemID detected!\n\n" +
-                        $"ID: {id}\n" +
-                        $"Item 1: {existing}\n" +
-                        $"Item 2: {path}"
-                    );
-
+                    Debug.LogError($"[InventoryModule] Duplicate ItemID!\nID: {id}\nItem 1: {existing}\nItem 2: {path}");
                     valid = false;
                 }
                 else
@@ -152,20 +135,10 @@ namespace InventoryModule.IDSystem
                 }
             }
 
-
-            if(valid)
-            {
-                Debug.Log(
-                    $"[InventoryModule] Validation passed. " +
-                    $"{ids.Count} IDs checked."
-                );
-            }
-
-
+            // This tells you if IItem assets are being found at all
+            Debug.Log($"[InventoryModule] Validated {itemCount} IItem assets. Valid: {valid}");
             return valid;
         }
-    
-        
     }
 }
 

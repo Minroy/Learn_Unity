@@ -48,7 +48,7 @@ PluginImporter:
       enabled: 1
       settings: {}
     Win:
-      enabled: 1
+      enabled: 0
       settings:
         CPU: AnyCPU
     Win64:

@@ -4,6 +4,7 @@ using InventoryModule.UI;
 using PurrNet.Collections;
 using System;
 using System.Collections;
+using UnityEditor;
 using UnityEngine;
 
 namespace InventoryModule
@@ -14,6 +15,7 @@ namespace InventoryModule
     /// </summary>
     public class FixedInventory : InventoryListModuleBase
     {
+        
         protected Slot<IItem>[] Slots;
 
         public FixedInventory(int Size)
