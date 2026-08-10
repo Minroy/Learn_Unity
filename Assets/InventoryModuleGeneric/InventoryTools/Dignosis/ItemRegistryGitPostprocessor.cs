@@ -8,13 +8,12 @@ using UnityEngine;
 
 namespace InventoryModule.Diagnostics
 {
-    public class ItemRegistryGitPostprocessor : AssetPostprocessor
+    internal class ItemRegistryGitPostprocessor : AssetPostprocessor
     {
-        private static void OnPostprocessAllAssets(
-            string[] importedAssets,
-            string[] deletedAssets,
-            string[] movedAssets,
-            string[] movedFromAssetPaths)
+        private static void OnPostprocessAllAssets(string[] importedAssets,
+                                                   string[] deletedAssets,
+                                                   string[] movedAssets,
+                                                   string[] movedFromAssetPaths)
 
         {
             bool hasItemChanged = false;
@@ -23,16 +22,13 @@ namespace InventoryModule.Diagnostics
             {
                 string path = importedAssets[i];
 
-                if (!path.EndsWith(".asset"))
-                    continue;
-
                 // Load main asset and verify if it implements your IItem interface
                 ScriptableObject asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
 
                 if (asset is IItem)
                 {
                     hasItemChanged = true;
-                    break; // Found at least one modified item, trigger validation once
+                    break;
                 }
             }
 
@@ -45,7 +41,7 @@ namespace InventoryModule.Diagnostics
     }
 
     [InitializeOnLoad]
-    public static class ItemRegistryStartupValidator
+    internal static class ItemRegistryStartupValidator
     {
         private const string SESSION_KEY = "InventoryModule_StartupValidated";
 
@@ -66,9 +62,12 @@ namespace InventoryModule.Diagnostics
         }
     }
 
-    public class BuildProfileChecker : IPreprocessBuildWithReport
+    /// <summary>
+    /// 
+    /// </summary>
+    internal class BuildProfileChecker : IPreprocessBuildWithReport
     {
-        public int callbackOrder => -1000;
+        public int callbackOrder => -10;
 
         public void OnPreprocessBuild(BuildReport report)
         {

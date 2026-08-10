@@ -5,10 +5,6 @@ TODO :
 
 Creation of an InstanceID factory. 
 
-Presistenceid, hndling dupicate id. and Deletion of id, so when new ids are given it doesnt give the old ids to the new item. 
-Example. If WoodSo = 12, and the user deletes woodSO and creates a new WoodTypeSO. then the system will give it WoodTypeSO = 12. 
-This will override the woodso in the savesystem, syatem will also crash. 
-
 Creating Multiple types of InventoryList.
 FixedInventory - Its fixed, accepts any IItem.
 FixedInventory<T> - Its fixed, accepts the only given type of IItem, where T is IItem. 
@@ -22,6 +18,7 @@ StaticInventory. (debating is needed).
 All its contents are shared. 
 
 MultipleInventory - Holds multiple Fixed/dynamic inventorys internally. (Debating is needed) 
+Eaxple. MultipleInventory MultiInven<FixedInventory> =  new MultiInven<FixedInventory> { new FixedInventory{ item,item sword}, new FixedInventory{wood,item sword} }
 
 ContainerBehaviour - This makes any Class a Container. A middle men between UI, UNityEngine, and InventoryModule. 
 Handles everythings needed for containers. 
@@ -32,10 +29,7 @@ Better TaskQueue system.
 InventoryManager (Dont destroy on load, needs MainDisplayer, A ItemAssetBasel, and couple of other settings)
 Displayer -  Displayers given contents of the COntainers, inventory. Can Handler multiple or single. and autoSetups itself. 
 
-
-GITCOMmit issues. 
-If devs on diffrent bracnhes make diffrent items. then there is a chance it will get the same ids. even tho there are two diffrent items. 
-If two devs without communitication makes the Same item. then that item will get 2 dirrent IDS, resulting in git crash, and id system to fuck up. 
+InstanceID: Create a Override/ regeneration of instanceID at runtime. without SaveSYstem breaking. 
 
 
 
@@ -47,7 +41,6 @@ If two devs without communitication makes the Same item. then that item will get
 
 [IgnoreSave] : Ignores the Type of InventoryModule to Ignore, this while saving. 
 [OverrideID] : Lets you write a custom ID, which the ItemIDRegistry system, will ignore. 
-[PresistanceID] : Lets you Create New IDs, And the Savesystem will remap the new ids to the old ids. (Will be slow). 
 [UseGUID] : Use GUIDs as ItemID, Rather then Uint. (only for this items)
 
 [BypassRestrictions] : Attributes That bypass any restrictions placed by the container, inventory. 
@@ -61,6 +54,7 @@ If two devs without communitication makes the Same item. then that item will get
 [DestroyOnEvent(String)] : will destroy the container on a Given event. 
 [StaticOnly] : Makes this inventorys Items as Static. (inventory isnt static, the items inside are).
 
+
 [ThreadSafeMode] : Makes it Safe for threadings. 
-[Refesh] : Refreshes the entire COntainer. (Examples remapping ID form [PresistanceID] )
+[Refesh] : Refreshes the entire COntainer. (Examples remapping New UI, with new Slots)
 [Addicted] : Inventory will Always Be Full. (Just a gig of an attribute)

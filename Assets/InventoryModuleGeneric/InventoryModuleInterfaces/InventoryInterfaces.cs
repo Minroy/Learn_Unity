@@ -1,25 +1,8 @@
-using System;
 using TMPro;
-using Unity.VisualScripting;
 using UnityEngine;
 
 namespace InventoryModule.IDSystem
 {
-    // a struct that stores Instances of an item. (dictionaray will be used)
-    [System.Serializable]
-    public struct InstanceIDStruct<T>
-    {
-        public int InstanceID;
-        public T Data; // custom data the devs, that automatically adds itself
-    }
-
-    public interface IItemInstanceID<T>
-    {
-        Guid InstanceID {  get; } // = Guid.NewGuid();
-    }
-
-    
-
     /// <summary>
     /// This interfaces makes this object a item, ID is Auto-generated, and will be overriden. 
     /// </summary>
@@ -76,5 +59,29 @@ namespace InventoryModule.IDSystem
     public interface ISlotEvents
     {
 
+    }
+
+    public interface IStackable
+    {
+        public void CustomStackLogic();
+    }
+
+
+}
+
+namespace InventoryModule.IDSystem.Instance
+{
+    /// <summary>
+    /// Makes the Item, a Type of Instance
+    /// </summary>
+    public interface IInstanceID
+    {
+        ulong? InstanceID { get; set; }
+    }
+
+    public interface IInstanceDataPacker
+    {
+        public void Write(InstanceWriter writer);
+        public void Read(InstanceReader reader);
     }
 }
