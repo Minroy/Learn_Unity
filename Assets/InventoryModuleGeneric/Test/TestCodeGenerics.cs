@@ -1,4 +1,4 @@
-using InventoryModule.IDSystem;
+using InventoryModule;
 using UnityEngine;
 
 public class TestCodeGenerics : MonoBehaviour

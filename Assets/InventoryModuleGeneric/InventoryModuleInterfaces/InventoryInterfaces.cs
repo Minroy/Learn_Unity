@@ -1,7 +1,10 @@
+using System;
+using System.Collections.Generic;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 
-namespace InventoryModule.IDSystem
+namespace InventoryModule
 {
     /// <summary>
     /// This interfaces makes this object a item, ID is Auto-generated, and will be overriden. 
@@ -79,9 +82,8 @@ namespace InventoryModule.IDSystem.Instance
         ulong? InstanceID { get; set; }
     }
 
-    public interface IInstanceDataPacker
+    public ref struct InstanceData
     {
-        public void Write(InstanceWriter writer);
-        public void Read(InstanceReader reader);
+       
     }
 }

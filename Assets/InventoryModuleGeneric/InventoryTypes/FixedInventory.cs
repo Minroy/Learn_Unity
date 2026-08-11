@@ -1,7 +1,6 @@
 using InventoryModule.Data;
 using InventoryModule.IDSystem;
 using InventoryModule.UI;
-using PurrNet.Collections;
 using System;
 using System.Collections;
 using UnityEditor;

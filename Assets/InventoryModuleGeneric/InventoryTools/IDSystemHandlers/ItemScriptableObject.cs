@@ -28,7 +28,7 @@ namespace InventoryModule.IDSystem
         }
     }
 
-    public abstract class InstanceItemScriptableObject : ScriptableObject, IItem , IInstanceID
+    public abstract class InstanceItemScriptableObject : ScriptableObject, IItem , IInstanceID /*, IInstanceDataPacker*/
     {
         [SerializeField, HideInInspector] private uint? itemId = null;
         [SerializeField, HideInInspector] private ulong? instanceID = null;
