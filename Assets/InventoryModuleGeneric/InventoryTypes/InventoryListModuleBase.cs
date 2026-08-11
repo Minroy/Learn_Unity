@@ -1,21 +1,25 @@
+#pragma warning disable
 using InventoryModule.IDSystem;
-using InventoryModule.Multitasking;
+
 using System;
 using System.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 
 namespace InventoryModule
 {
     /// <summary>
     /// A base Class that All Custom Inventory List Inherit form
     /// </summary>
-    public abstract class InventoryListModuleBase : TaskSystem, IEnumerable
+    
+    public abstract class InventoryListModuleBase : IEnumerable
     {
-        public abstract int Length { get; }
-        public abstract bool IsFull { get; }
 
-        public event Action<int> OnSlotsAdd;
-        public event Action<int> OnSlotsRemoved;
-        public event Action OnSlotsUpdated;
+        protected abstract int Length { get; }
+        protected abstract bool IsFull { get; }
+
+        protected event Action<int> OnSlotsAdd;
+        protected event Action<int> OnSlotsRemoved;
+        protected event Action OnSlotsUpdated;
 
 
         #region Data Logic
@@ -23,7 +27,7 @@ namespace InventoryModule
         /// Adds the given item and amount to the Inventory.
         /// </summary>
         /// <returns> Amount that Slot couldnt add</returns>
-        public abstract int TryAdd<TAdd>(TAdd item, int amountToAdd) where TAdd : IItemData;
+        protected abstract int TryAdd<TAdd>(TAdd item, int amountToAdd) where TAdd : IItem;
 
 
 
@@ -31,7 +35,7 @@ namespace InventoryModule
         /// Adds the given item to inventory at index
         /// </summary>
         /// <returns> Amount that Slot couldnt add </returns>
-        public abstract int TryAdd<TAdd>(TAdd item, int amountToAdd, int index) where TAdd : IItemData;
+        protected abstract int TryAdd<TAdd>(TAdd item, int amountToAdd, int index) where TAdd : IItem;
 
 
 
@@ -39,7 +43,7 @@ namespace InventoryModule
         /// Removes the given amount of item
         /// </summary>
         /// <returns> Amount that Slot couldnt removed</returns>
-        public abstract int TryRemove<TRemove>(TRemove item, int amountToRemove) where TRemove : IItemData;
+        protected abstract int TryRemove<TRemove>(TRemove item, int amountToRemove) where TRemove : IItem;
 
 
 
@@ -47,7 +51,7 @@ namespace InventoryModule
         /// Removes the given amount of item
         /// </summary>
         /// <returns> Amount that Slot couldnt removed</returns>
-        public abstract int TryRemove<TRemove>(TRemove item, int amountToRemove, int index) where TRemove : IItemData;
+        protected abstract int TryRemove<TRemove>(TRemove item, int amountToRemove, int index) where TRemove : IItem;
 
 
 
@@ -55,25 +59,30 @@ namespace InventoryModule
         /// Removes the given amount of item at index
         /// </summary>
         /// <returns> Amount that Slot couldnt removed</returns>
-        public abstract int RemoveAmountAt(int index, int amountToRemove);
+        protected abstract int RemoveAmountAt(int index, int amountToRemove);
 
         /// <summary>
         /// Clears the entire InventoryList
         /// </summary>
         /// <returns></returns>
-        public abstract void Clear();
+        protected abstract void Clear();
+
+        /// <summary>
+        /// Clears the Slot at Index, but returns amount
+        /// </summary>
+        protected abstract int ClearAndReturn(int index);
 
         /// <summary>
         /// Clears the Slot at Index
         /// </summary>
-        public abstract int Clear(int index);
+        protected abstract void Clear(int index);
 
         #endregion
 
 
-        public abstract T GetValue<T>(int index);
+        protected abstract T GetValue<T>(int index);
 
-        public abstract void GetValue<T>(int index, out T value);
+        protected abstract void GetValue<T>(int index, out T value);
 
         public abstract IEnumerator GetEnumerator();
 
@@ -83,11 +92,11 @@ namespace InventoryModule
             return GetEnumerator();
         }
 
-        public bool CheckNullOrEmpty<TtoCheck>(TtoCheck item, int amount) where TtoCheck : IItemData
+        public void CheckNullOrEmpty<TtoCheck>(TtoCheck item, int amount) where TtoCheck : IItem
         {
             if (item == null)
             {
-                 throw new ArgumentNullException($"{nameof(TtoCheck)} is null");
+                throw new ArgumentNullException($"{nameof(TtoCheck)} is null");
             }
             else if (item.ItemID == null)
             {
@@ -95,8 +104,7 @@ namespace InventoryModule
             }
             else if (amount < 0) throw new Exception("amount negative");
 
-            return true;
-
         }
     }
+
 }
