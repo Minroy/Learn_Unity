@@ -2,6 +2,7 @@
 using InventoryModule;
 using InventoryModule.IDSystem.Instance;
 using NUnit.Framework;
+using NUnit.Framework.Internal.Execution;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -30,6 +31,9 @@ namespace InventoryModule
         }
     }
 
+    /// <summary>
+    /// This class makes this Item type of Instance
+    /// </summary>
     public abstract class InstanceItemScriptableObject : ScriptableObject, IItem, IInstanceable
     {
         [SerializeField, HideInInspector] private uint? itemId = null;
