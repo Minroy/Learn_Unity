@@ -1,4 +1,0 @@
-namespace InventoryModule.IDSystem.Instance
-{
-   
-}

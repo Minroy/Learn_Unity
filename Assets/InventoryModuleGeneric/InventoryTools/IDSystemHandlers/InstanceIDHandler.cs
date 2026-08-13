@@ -12,7 +12,7 @@ namespace InventoryModule.IDSystem.Instance
             return BitConverter.ToUInt64(bytes);
         }
 
-        public static ulong GetInstanceID(IInstanceID instanceID) // To replace with IItsanceItem.
+        public static ulong GetInstanceID(IInstanceable instanceID) // To replace with IItsanceItem.
         {
             return instanceID.InstanceID.Value;
         }

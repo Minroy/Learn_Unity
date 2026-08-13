@@ -64,9 +64,10 @@ namespace InventoryModule
 
     }
 
+    //Custom StackLogic, shoudld this item stack or not.
     public interface IStackable
     {
-        public void CustomStackLogic();
+        public bool CustomStackLogic();
     }
 
 
@@ -77,10 +78,17 @@ namespace InventoryModule.IDSystem.Instance
     /// <summary>
     /// Makes the Item, a Type of Instance
     /// </summary>
-    public interface IInstanceID
+    public interface IInstanceable
     {
-        ulong? InstanceID { get; set; }
+       public ulong? InstanceID { get; set; }
     }
+
+    public interface IInstanceDataPacker : IInstanceable
+    {
+        public T ReadInstanceData<T>(InstanceDataPacker Read);
+        public void WriteInstanceData<T>(InstanceDataPacker Write);
+    }
+
 
     public ref struct InstanceData
     {
