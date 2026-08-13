@@ -30,7 +30,7 @@ namespace InventoryModule
         }
     }
 
-    public abstract class InstanceItemScriptableObject : ScriptableObject, IItem, IInstanceable , IInstanceDataPacker
+    public abstract class InstanceItemScriptableObject : ScriptableObject, IItem, IInstanceable
     {
         [SerializeField, HideInInspector] private uint? itemId = null;
         [SerializeField, HideInInspector] private ulong? instanceID = null;
@@ -44,17 +44,6 @@ namespace InventoryModule
         public Sprite Icon => icon;
 
         ulong? IInstanceable.InstanceID { get => instanceID; set => instanceID = value; }
-
-        public T ReadInstanceData<T>(InstanceDataPacker Read)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void WriteInstanceData<T>(InstanceDataPacker Write)
-        {
-            throw new NotImplementedException();
-        }
-
         private void Awake()
         {
             if (!instanceID.HasValue)
