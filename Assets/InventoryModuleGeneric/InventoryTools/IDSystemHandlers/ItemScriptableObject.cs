@@ -36,28 +36,36 @@ namespace InventoryModule
     /// </summary>
     public abstract class InstanceItemScriptableObject : ScriptableObject, IItem, IInstanceable
     {
-        [SerializeField, HideInInspector] private uint? itemId = null;
+        [SerializeField] private uint itemId;
         [SerializeField, HideInInspector] private ulong? instanceID = null;
         [SerializeField] private int maxAmount;
         [SerializeField] private Sprite icon;
+        [SerializeField] private uint test;
 
-        public uint? ItemID => itemId;
+        public uint? ItemID => itemId == 0 ? null : itemId ;
 
         public int MaxAmount => maxAmount;
 
         public Sprite Icon => icon;
 
-        ulong? IInstanceable.InstanceID { get => instanceID; set => instanceID = value; }
+        public ulong? InstanceID { get => instanceID; set => instanceID = value; }
+
         private void Awake()
         {
+            if (!Application.isPlaying)
+                return;
+
             if (!instanceID.HasValue)
                 instanceID = InstanceIDHandler.GenerateID();
+
+            Debug.Log($"ItemID: {(ItemID.HasValue ? ItemID.Value.ToString() : "NULL")} | InstanceID: {instanceID}");
         }
 
         //expicit to prevent external for rewriting 
         void IItem.SetID(uint id)
         {
             itemId = id;
+            test = id;
         }
     }
 }

@@ -12,6 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f688d5d2e9c767d47808e186285b1387, type: 3}
   m_Name: PotionSO 1
   m_EditorClassIdentifier: 
+  itemId: 2487931303
   maxAmount: 0
   icon: {fileID: 0}
+  test: 2487931303
   Arrows: {fileID: 0}

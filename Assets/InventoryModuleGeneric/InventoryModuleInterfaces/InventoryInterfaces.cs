@@ -91,6 +91,7 @@ namespace InventoryModule
         /// What Data this instance will have unique. Order of writing Matters.
         /// </summary>
         /// <param name="writer"> what Data that needs to be written</param>
+        [ContextMenu("WERT")] //PlaceHolder
         public void WriteDataToPacker(InstanceDataWriter writer);
 
         /// <summary>

@@ -13,10 +13,6 @@ MonoBehaviour:
   m_Name: ItemRegisteryTool
   m_EditorClassIdentifier: 
   InventoryItems:
-  - {fileID: 11400000, guid: 4e18b57445c84cd4d80d527a5333a633, type: 2}
-  - {fileID: 11400000, guid: 01bd38fbc2587f84db00eb07ffd52ca5, type: 2}
-  - {fileID: 11400000, guid: 226497c604d601144a7609097af26cc6, type: 2}
-  - {fileID: 11400000, guid: 1c930eb373c2f3f4c88f0fc45283bd58, type: 2}
-  - {fileID: 11400000, guid: ab800f18e9f40fa45a0986954b416862, type: 2}
-  - {fileID: 11400000, guid: 5b992412b677d1a49ad2f9ab0004d80e, type: 2}
+  - {fileID: 11400000, guid: 0ed46d4e756014e4da57b06440da83c8, type: 2}
+  - {fileID: 11400000, guid: fb637f8588367524bbc87581f9769920, type: 2}
   - {fileID: 11400000, guid: 9a9ea5018569ba149b92da302a87012a, type: 2}
