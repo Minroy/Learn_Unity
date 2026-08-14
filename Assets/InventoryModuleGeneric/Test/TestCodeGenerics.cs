@@ -3,16 +3,17 @@ using UnityEngine;
 
 public class TestCodeGenerics : MonoBehaviour
 {
-    //private FixedInventory<PotionSO> potionSOs = new(10);
+    [SerializeField] private PotionSO testPotion1;
+    [SerializeField] private PotionSO testPotion2;
+    [SerializeField] private PotionSO testPotion3;
+
+
     void Start()
     {
-
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-
+        Debug.Log(testPotion1.ItemID);
+        Instantiate(testPotion1);
+        Instantiate(testPotion2);
+        Instantiate(testPotion3);
     }
 }
 

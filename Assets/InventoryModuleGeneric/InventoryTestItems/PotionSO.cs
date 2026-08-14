@@ -1,12 +1,24 @@
-using InventoryModule.IDSystem;
+using InventoryModule;
+using InventoryModule.IDSystem.Instance;
+using UnityEditor;
 using UnityEngine;
 
 //exmaple of an item
 [CreateAssetMenu(fileName = "PotionSO", menuName = "Scriptable Objects/PotionSO")]
-public class PotionSO : ItemScriptableObject
+public class PotionSO : InstanceItemScriptableObject, IStackable
 {
-    public override int MaxAmount => throw new System.NotImplementedException();
 
-    public override Sprite Icon => throw new System.NotImplementedException();
+    public bool CustomStackLogic()
+    {
+       return Exp.Equals(Example1);
+    }
+
+
+    int Example1 = 123;
+    ulong Exp = 3829019457832002;
+
+    public Arrows Arrows;
+
+    public IItem item;
 }
 

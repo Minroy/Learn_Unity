@@ -1,3 +1,4 @@
+using InventoryModule.Packer;
 using System;
 using System.Collections.Generic;
 using TMPro;
@@ -64,26 +65,55 @@ namespace InventoryModule
 
     }
 
+    //Custom StackLogic, shoudld this item stack or not.
     public interface IStackable
     {
-        public void CustomStackLogic();
+        public bool CustomStackLogic();
     }
 
 
 }
 
-namespace InventoryModule.IDSystem.Instance
+namespace InventoryModule
 {
     /// <summary>
     /// Makes the Item, a Type of Instance
     /// </summary>
-    public interface IInstanceID
+    public interface IInstanceable
     {
-        ulong? InstanceID { get; set; }
+        public ulong? InstanceID { get; set; }
     }
 
-    public ref struct InstanceData
+    public interface IInstanceDataPacker
     {
-       
+
+        /// <summary>
+        /// What Data this instance will have unique. Order of writing Matters.
+        /// </summary>
+        /// <param name="writer"> what Data that needs to be written</param>
+        [ContextMenu("WERT")] //PlaceHolder
+        public void WriteDataToPacker(InstanceDataWriter writer);
+
+        /// <summary>
+        /// What Data this instance will read back, During or after creation. 
+        /// </summary>
+        /// <param name="reader">this reads what data is given</param>
+        public void ReadDataFormPacker(InstanceDataReader reader);
     }
+
+    public interface IInstanceDataPackerAuto // todo
+    {
+        
+    }
+
+
+    public ref struct InstanceData // todo
+    {
+
+    }
+}
+
+namespace InventoryModule.Tasking
+{
+
 }

@@ -23,6 +23,7 @@ namespace InventoryModule.IDSystem
         [ContextMenu(nameof(GenerateID))]
         private async Task GenerateID()
         {
+            InventoryItems.Clear();
             string[] assets = AssetDatabase.FindAssets("t:ScriptableObject");
             await Task.Yield();
             short countToPuase = 500;

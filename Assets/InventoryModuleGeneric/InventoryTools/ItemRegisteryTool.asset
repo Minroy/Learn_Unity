@@ -13,4 +13,6 @@ MonoBehaviour:
   m_Name: ItemRegisteryTool
   m_EditorClassIdentifier: 
   InventoryItems:
-  - {fileID: 11400000, guid: 7992957bda206de40baac17e14be2816, type: 2}
+  - {fileID: 11400000, guid: 0ed46d4e756014e4da57b06440da83c8, type: 2}
+  - {fileID: 11400000, guid: fb637f8588367524bbc87581f9769920, type: 2}
+  - {fileID: 11400000, guid: 9a9ea5018569ba149b92da302a87012a, type: 2}
