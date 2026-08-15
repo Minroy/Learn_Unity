@@ -10,10 +10,6 @@ public class TestCodeGenerics : MonoBehaviour
 
     void Start()
     {
-        Debug.Log(testPotion1.ItemID);
-        Instantiate(testPotion1);
-        Instantiate(testPotion2);
-        Instantiate(testPotion3);
     }
 }
 
