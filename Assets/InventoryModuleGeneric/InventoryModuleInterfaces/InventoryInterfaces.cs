@@ -12,7 +12,7 @@ namespace InventoryModule
     /// </summary>
     public interface IItem
     {
-        uint? ItemID { get; }
+        uint ItemID { get; }
         int MaxAmount { get; }
         Sprite Icon { get; }
         void SetID(uint id);
@@ -79,9 +79,9 @@ namespace InventoryModule
     /// <summary>
     /// Makes the Item, a Type of Instance
     /// </summary>
-    public interface IInstanceable
+    public interface IInstanceable : IItem
     {
-        public ulong? InstanceID { get; set; }
+        public ulong InstanceID { get; set; }
     }
 
     public interface IInstanceDataPacker

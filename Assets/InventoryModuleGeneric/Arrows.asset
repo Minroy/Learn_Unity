@@ -12,10 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ceb5afb43430084ea041c2eca64e7cc, type: 3}
   m_Name: Arrows
   m_EditorClassIdentifier: 
-  itemId: 0
+  itemId: 2187238253
+  instanceID: 0
   maxAmount: 0
   icon: {fileID: 0}
-  test: 0
+  test: 2187238253
   dmg: 12
   MaxCap: 122
   Name: 

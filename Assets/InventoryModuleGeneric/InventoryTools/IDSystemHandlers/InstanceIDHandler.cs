@@ -14,7 +14,7 @@ namespace InventoryModule.IDSystem.Instance
 
         public static ulong GetInstanceID(IInstanceable instanceID) // To replace with IItsanceItem.
         {
-            return instanceID.InstanceID.Value;
+            return instanceID.InstanceID;
         }
 
         //TODO: VERYLOW
