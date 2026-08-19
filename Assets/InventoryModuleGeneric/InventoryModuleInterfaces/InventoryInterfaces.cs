@@ -18,6 +18,25 @@ namespace InventoryModule
         void SetID(uint id);
     }
 
+    /// <summary>
+    /// Identifies where a slot operation happened - which container and
+    /// which slot index within it. Passed around so events/UI can react
+    /// without the slot needing to know about its own container directly.
+    /// </summary>
+    public readonly struct SlotContext
+    {
+        public readonly IContainerIdentifier Container;
+        public readonly int SlotIndex;
+
+        public SlotContext(IContainerIdentifier container, int slotIndex)
+        {
+            Container = container;
+            SlotIndex = slotIndex;
+        }
+
+        public override string ToString() => $"{Container?.GetId() ?? "?"}[{SlotIndex}]";
+    }
+
     public interface ISlotHandler
     {
         IItem Item { get; }
@@ -25,6 +44,7 @@ namespace InventoryModule
         bool IsFull { get; }
         int SpaceLeft { get; }
         int Amount { get; }
+        SlotContext Context { get; }
         void Clear();
     }
 
@@ -101,15 +121,70 @@ namespace InventoryModule
         public void ReadDataFormPacker(InstanceDataReader reader);
     }
 
-    public interface IInstanceDataPackerAuto // todo
+    /// <summary>
+    /// Convenience alternative to IInstanceDataPacker. Implement THIS
+    /// instead when you don't want to hand-write WriteDataToPacker /
+    /// ReadDataFormPacker: the packer discovers this type's public
+    /// instance fields via reflection (in declaration order) and packs
+    /// them automatically.
+    ///
+    /// Trade-off vs IInstanceDataPacker: slower (reflection) and less
+    /// control (no custom ordering, no skipping fields, no versioning
+    /// logic) - use IInstanceDataPacker instead for hot-path or
+    /// frequently-instanced item types.
+    ///
+    /// Marker only - no members. The reading/writing logic that acts on
+    /// this lives in InstanceDataWriter/InstanceDataReader, not here.
+    /// </summary>
+    public interface IInstanceDataPackerAuto
     {
-        
     }
 
 
-    public ref struct InstanceData // todo
+    /// <summary>
+    /// Lightweight stack-only bundle of an item's ItemID + InstanceID,
+    /// for quick lookups/comparisons without needing the full IItem /
+    /// IInstanceable objects on hand.
+    ///
+    /// NOTE: because this is a ref struct, it CANNOT be used as a
+    /// Dictionary&lt;TKey,...&gt; key or any other generic type argument
+    /// (the runtime disallows ref structs there). If you need this as an
+    /// actual hashmap key somewhere, it needs to be a plain readonly
+    /// struct instead - flag it if that's the case.
+    /// </summary>
+    public readonly ref struct InstanceData
     {
+        public readonly uint ItemID;
+        public readonly ulong InstanceID;
 
+        public InstanceData(uint itemID, ulong instanceID)
+        {
+            ItemID = itemID;
+            InstanceID = instanceID;
+        }
+
+        /// <summary>
+        /// Builds a lookup key from an item + instance pair. Both IDs
+        /// must already be assigned - this reads existing IDs, it does
+        /// not allocate new ones.
+        /// </summary>
+        public static InstanceData From(IItem item, IInstanceable instance)
+        {
+            if (item?.ItemID is not uint itemId)
+                throw new InvalidOperationException("InstanceData.From: item has no assigned ItemID.");
+            if (instance?.InstanceID is not ulong instanceId)
+                throw new InvalidOperationException("InstanceData.From: instance has no assigned InstanceID.");
+
+            return new InstanceData(itemId, instanceId);
+        }
+
+        public bool Equals(InstanceData other) =>
+            ItemID == other.ItemID && InstanceID == other.InstanceID;
+
+        public static bool operator ==(InstanceData left, InstanceData right) => left.Equals(right);
+        public static bool operator !=(InstanceData left, InstanceData right) => !left.Equals(right);
+
+        public override string ToString() => $"Item {ItemID} / Instance {InstanceID}";
     }
 }
 
