@@ -37,12 +37,12 @@ namespace InventoryModule
     /// </summary>
     public abstract class InstanceItemScriptableObject : ScriptableObject, IInstanceable, IInstanceDataPacker
     {
-        [SerializeField] private uint itemId = 0;
-        [SerializeField, HideInInspector] private ulong instanceID = 0;
+        [SerializeField, HideInInspector] private uint itemId = 0;
         [SerializeField] private int maxAmount;
         [SerializeField] private Sprite icon;
         [SerializeField] private uint test;
 
+         private ulong instanceID = 0;
         public uint ItemID => itemId == 0 ? 0 : itemId;
 
         public int MaxAmount => maxAmount;
