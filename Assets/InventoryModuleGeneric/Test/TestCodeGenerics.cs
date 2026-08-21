@@ -10,19 +10,15 @@ public class TestCodeGenerics : MonoBehaviour
 
     void Start()
     {
-        Debug.Log(testPotion1.InstanceID);
-        testPotion2 = Instantiate(testPotion1);
-        Arrows testest4 = Instantiate(testPotion1);
-        Debug.Log(testPotion2.InstanceID);
-        Debug.Log(testPotion1.InstanceID);
-        Debug.Log(testest4.InstanceID);
+        Instantiate(testPotion1);
     }
+
 
 }
 
 public class TestItems : MonoBehaviour, IItem
 {
-    public uint ItemID => throw new System.NotImplementedException();
+    public uint ItemId => throw new System.NotImplementedException();
 
     public int MaxAmount => throw new System.NotImplementedException();
 
@@ -36,7 +32,7 @@ public class TestItems : MonoBehaviour, IItem
 
 public class TestItem2 : MonoBehaviour, IItem
 {
-    public uint ItemID => throw new System.NotImplementedException();
+    public uint ItemId => throw new System.NotImplementedException();
 
     public int MaxAmount => throw new System.NotImplementedException();
 

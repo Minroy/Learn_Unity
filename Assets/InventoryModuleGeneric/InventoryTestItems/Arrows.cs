@@ -19,7 +19,6 @@ public class Arrows : InstanceItemScriptableObject
 
     public override void WriteDataToPacker(InstanceDataWriter writer)
     {
-        Debug.Log("Writing for arrows");
         writer.Write(dmg);
         writer.Write(MaxCap);
         writer.Write(Name);

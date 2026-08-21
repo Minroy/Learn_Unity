@@ -19,7 +19,7 @@ namespace InventoryModule
         [SerializeField, HideInInspector] private uint itemId = 0;
         [SerializeField] private int maxAmount;
         [SerializeField] private Sprite icon;
-        public uint ItemID => itemId;
+        public uint ItemId => itemId;
 
         public int MaxAmount => maxAmount;
 
@@ -43,36 +43,26 @@ namespace InventoryModule
         [SerializeField] private uint test;
 
          private ulong instanceID = 0;
-        public uint ItemID => itemId == 0 ? 0 : itemId;
+        public uint ItemId => itemId == 0 ? 0 : itemId;
 
         public int MaxAmount => maxAmount;
 
         public Sprite Icon => icon;
 
-        public ulong InstanceID { get => instanceID; set => instanceID = value; }
+        public ulong InstanceId { get => instanceID; set => instanceID = value; }
 
-        public void ExecuteWrite()
-        {
-            if (InstanceDataServicePovider.S_instanceDataServicePovider.Begin(this))
-            {
-                Debug.Log("Writing for arrow");               
-                    WriteDataToPacker(new InstanceDataWriter());
-            }
-        }
-
-        public void ExecuteReader()
-        {
-
-        }
+    
 
         private void Awake()
         {
+            //Safety feature to prevent Editor form Writing
             if (!Application.isPlaying)
                 return;
 
             if (instanceID == 0)
                 instanceID = InstanceIDHandler.GenerateID();
-            ExecuteWrite();
+
+            ((IInstanceDataPacker)this).ExecuteWriter();
 
             Debug.Log($"{itemId}, {instanceID}");
         }
@@ -86,5 +76,17 @@ namespace InventoryModule
 
         public abstract void WriteDataToPacker(InstanceDataWriter writer);
         public abstract void ReadDataFormPacker(InstanceDataReader reader);
+        void IInstanceDataPacker.ExecuteWriter()
+        {
+            if (InstanceDataWriter.Instance.Begin(this))
+            {
+                WriteDataToPacker(InstanceDataWriter.Instance);
+            }
+        }
+
+        void IInstanceDataPacker.ExecuteReader()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

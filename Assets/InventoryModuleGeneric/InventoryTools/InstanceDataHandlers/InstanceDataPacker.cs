@@ -1,15 +1,22 @@
-using System;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
+using UnityEngine;
 
 namespace InventoryModule.Packer
 {
-    //TODO; Create A Data writer, Reader
+    //PR:HIGH =  TODO: Create A Data writer, Reader
     public sealed class InstanceDataWriter : InstanceDataServicePovider
     {
 
-        public void Write<T>(T data, uint ItemID = default, ulong InstanceID = default)
+        public static InstanceDataWriter Instance { get; } = new();
+
+        public void Write<T>(T data, uint ItemId = default, ulong InstanceId = default)
         {
+            ItemId = CurrentItemWriterId;
+            InstanceId = CurrentInstanceWriterId;
+
+            Debug.Log($"{ItemId}it/ {InstanceId}" );
+            if (ItemId == 0 || InstanceId == 0) return;
+
+
             if (data is null)
             {
                 WriteNull();
@@ -33,7 +40,7 @@ namespace InventoryModule.Packer
         }
     }
 
-    public sealed class InstanceDataReader : InstanceDataServicePovider 
+    public sealed class InstanceDataReader : InstanceDataServicePovider
     {
         public T Read<T>(T toRead)
         {
@@ -58,14 +65,13 @@ namespace InventoryModule.Packer
     // this is just a Class that both read and write can use. Like
     public class InstanceDataServicePovider
     {
-        public static InstanceDataServicePovider S_instanceDataServicePovider = new();
-
-        protected uint CurrentItemWriterID = 0;
-        protected ulong CurrentInstanceWriterID = 0;
+        protected uint CurrentItemWriterId = 0;
+        protected ulong CurrentInstanceWriterId = 0;
+        protected IInstanceDataPacker ind;
         public bool Begin(IInstanceable instanceable)
         {
-            CurrentInstanceWriterID = instanceable.InstanceID;
-            CurrentItemWriterID = instanceable.ItemID;
+            CurrentInstanceWriterId = instanceable.InstanceId;
+            CurrentItemWriterId = instanceable.ItemId;
             return true;
         }
     }

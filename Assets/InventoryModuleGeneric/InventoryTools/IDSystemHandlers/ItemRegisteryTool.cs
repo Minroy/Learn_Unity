@@ -42,7 +42,7 @@ namespace InventoryModule.IDSystem
 
 
 
-                if (itemData.ItemID != 0)
+                if (itemData.ItemId != 0)
                 {
                     InventoryItems.Add(asset);
                     continue;
@@ -115,14 +115,14 @@ namespace InventoryModule.IDSystem
 
                 itemCount++;
 
-                if (item.ItemID == 0)
+                if (item.ItemId == 0)
                 {
                     Debug.LogWarning($"[InventoryModule] {asset.name} has no ItemID.");
                     valid = false;
                     continue;
                 }
 
-                uint id = item.ItemID;
+                uint id = item.ItemId;
 
                 if (ids.TryGetValue(id, out string existing))
                 {
