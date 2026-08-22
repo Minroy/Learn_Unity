@@ -4,24 +4,24 @@ using UnityEngine;
 
 //TestItem
 [CreateAssetMenu(fileName = "Arrows", menuName = "Scriptable Objects/Arrows")]
-public class Arrows : InstanceItemScriptableObject, IInstanceDataPacker, IInstanceDataPackerAuto
+public class Arrows : InstanceItemScriptableObject
 {
     public int dmg = 12;
     public int MaxCap = 122;
     public string Name;
 
-    public void ReadDataFormPacker(InstanceDataReader reader)
+    public override void ReadDataFormPacker(InstanceDataReader reader)
     {
         dmg = reader.Read(dmg);
         MaxCap = reader.Read(MaxCap);
         Name = reader.Read(Name);
     }
 
-    public void WriteDataToPacker(InstanceDataWriter writer)
+    public override void WriteDataToPacker(InstanceDataWriter writer)
     {
-        writer.Write(dmg, this);
-        writer.Write(MaxCap, this);
-        writer.Write(Name, this);
+        writer.Write(dmg);
+        writer.Write(MaxCap);
+        writer.Write(Name);
     }
 }
 

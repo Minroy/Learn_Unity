@@ -42,7 +42,7 @@ namespace InventoryModule.IDSystem
 
 
 
-                if (itemData.ItemID.HasValue)
+                if (itemData.ItemId != 0)
                 {
                     InventoryItems.Add(asset);
                     continue;
@@ -115,14 +115,14 @@ namespace InventoryModule.IDSystem
 
                 itemCount++;
 
-                if (!item.ItemID.HasValue)
+                if (item.ItemId == 0)
                 {
                     Debug.LogWarning($"[InventoryModule] {asset.name} has no ItemID.");
                     valid = false;
                     continue;
                 }
 
-                uint id = item.ItemID.Value;
+                uint id = item.ItemId;
 
                 if (ids.TryGetValue(id, out string existing))
                 {
@@ -134,9 +134,6 @@ namespace InventoryModule.IDSystem
                     ids.Add(id, path);
                 }
             }
-
-            // This tells you if IItem assets are being found at all
-            Debug.Log($"[InventoryModule] Validated {itemCount} IItem assets. Valid: {valid}");
             return valid;
         }
     }

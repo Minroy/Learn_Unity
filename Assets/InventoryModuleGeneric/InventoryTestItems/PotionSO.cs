@@ -5,7 +5,7 @@ using UnityEngine;
 
 //exmaple of an item
 [CreateAssetMenu(fileName = "PotionSO", menuName = "Scriptable Objects/PotionSO")]
-public class PotionSO : InstanceItemScriptableObject, IStackable
+public class PotionSO : ItemScriptableObject, IStackable
 {
 
     public bool CustomStackLogic()

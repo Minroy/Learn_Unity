@@ -12,7 +12,7 @@ namespace InventoryModule
     /// </summary>
     public interface IItem
     {
-        uint? ItemID { get; }
+        uint ItemId { get; }
         int MaxAmount { get; }
         Sprite Icon { get; }
         void SetID(uint id);
@@ -79,23 +79,24 @@ namespace InventoryModule
     /// <summary>
     /// Makes the Item, a Type of Instance
     /// </summary>
-    public interface IInstanceable
+    public interface IInstanceable : IItem
     {
-        public ulong? InstanceID { get; set; }
+        public ulong InstanceId { get; set; }
     }
 
     public interface IInstanceDataPacker
     {
+        void ExecuteWriter();
+        void ExecuteReader(); 
 
         /// <summary>
-        /// What Data this instance will have unique. Order of writing Matters.
+        /// What Data this Instance will have unique. Order of writing Matters.
         /// </summary>
         /// <param name="writer"> what Data that needs to be written</param>
-        [ContextMenu("WERT")] //PlaceHolder
         public void WriteDataToPacker(InstanceDataWriter writer);
 
         /// <summary>
-        /// What Data this instance will read back, During or after creation. 
+        /// What Data this Instance will read back, During or after creation. 
         /// </summary>
         /// <param name="reader">this reads what data is given</param>
         public void ReadDataFormPacker(InstanceDataReader reader);
@@ -104,12 +105,6 @@ namespace InventoryModule
     public interface IInstanceDataPackerAuto // todo
     {
         
-    }
-
-
-    public ref struct InstanceData // todo
-    {
-
     }
 }
 

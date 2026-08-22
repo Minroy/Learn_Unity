@@ -1,6 +1,7 @@
 ﻿#pragma warning disable
 using InventoryModule;
 using InventoryModule.IDSystem.Instance;
+using InventoryModule.Packer;
 using NUnit.Framework;
 using NUnit.Framework.Internal.Execution;
 using System;
@@ -15,10 +16,10 @@ namespace InventoryModule
 
     public abstract class ItemScriptableObject : ScriptableObject, IItem
     {
-        [SerializeField, HideInInspector] private uint? itemId = null;
+        [SerializeField, HideInInspector] private uint itemId = 0;
         [SerializeField] private int maxAmount;
         [SerializeField] private Sprite icon;
-        public uint? ItemID => itemId;
+        public uint ItemId => itemId;
 
         public int MaxAmount => maxAmount;
 
@@ -34,31 +35,36 @@ namespace InventoryModule
     /// <summary>
     /// This class makes this Item type of Instance
     /// </summary>
-    public abstract class InstanceItemScriptableObject : ScriptableObject, IItem, IInstanceable
+    public abstract class InstanceItemScriptableObject : ScriptableObject, IInstanceable, IInstanceDataPacker
     {
-        [SerializeField] private uint itemId;
-        [SerializeField, HideInInspector] private ulong? instanceID = null;
+        [SerializeField, HideInInspector] private uint itemId = 0;
         [SerializeField] private int maxAmount;
         [SerializeField] private Sprite icon;
         [SerializeField] private uint test;
 
-        public uint? ItemID => itemId == 0 ? null : itemId ;
+         private ulong instanceID = 0;
+        public uint ItemId => itemId == 0 ? 0 : itemId;
 
         public int MaxAmount => maxAmount;
 
         public Sprite Icon => icon;
 
-        public ulong? InstanceID { get => instanceID; set => instanceID = value; }
+        public ulong InstanceId { get => instanceID; set => instanceID = value; }
+
+    
 
         private void Awake()
         {
+            //Safety feature to prevent Editor form Writing
             if (!Application.isPlaying)
                 return;
 
-            if (!instanceID.HasValue)
+            if (instanceID == 0)
                 instanceID = InstanceIDHandler.GenerateID();
 
-            Debug.Log($"ItemID: {(ItemID.HasValue ? ItemID.Value.ToString() : "NULL")} | InstanceID: {instanceID}");
+            ((IInstanceDataPacker)this).ExecuteWriter();
+
+            Debug.Log($"{itemId}, {instanceID}");
         }
 
         //expicit to prevent external for rewriting 
@@ -66,6 +72,21 @@ namespace InventoryModule
         {
             itemId = id;
             test = id;
+        }
+
+        public abstract void WriteDataToPacker(InstanceDataWriter writer);
+        public abstract void ReadDataFormPacker(InstanceDataReader reader);
+        void IInstanceDataPacker.ExecuteWriter()
+        {
+            if (InstanceDataWriter.Instance.Begin(this))
+            {
+                WriteDataToPacker(InstanceDataWriter.Instance);
+            }
+        }
+
+        void IInstanceDataPacker.ExecuteReader()
+        {
+            throw new NotImplementedException();
         }
     }
 }

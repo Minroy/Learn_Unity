@@ -42,7 +42,7 @@ namespace InventoryModule
             {
                 if (remaining <= 0) break;
 
-                if (!Slots[i].IsEmpty && Slots[i].Item.ItemID == item.ItemID)
+                if (!Slots[i].IsEmpty && Slots[i].Item.ItemId == item.ItemId)
                 {
                     remaining = Slots[i].Add(item, remaining); // operate directly on the array element
                 }

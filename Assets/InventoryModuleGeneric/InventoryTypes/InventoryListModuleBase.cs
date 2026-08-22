@@ -98,7 +98,7 @@ namespace InventoryModule
             {
                 throw new ArgumentNullException($"{nameof(TtoCheck)} is null");
             }
-            else if (item.ItemID == null)
+            else if (item.ItemId == null)
             {
                 throw new ArgumentNullException($"{nameof(TtoCheck)} has no id");
             }
