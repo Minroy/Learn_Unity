@@ -10,6 +10,8 @@ public class Arrows : InstanceItemScriptableObject
     public int MaxCap = 122;
     public string Name;
 
+    public Arrows aa;
+
     public override void ReadDataFormPacker(InstanceDataReader reader)
     {
         dmg = reader.Read(dmg);
@@ -19,6 +21,7 @@ public class Arrows : InstanceItemScriptableObject
 
     public override void WriteDataToPacker(InstanceDataWriter writer)
     {
+        Debug.Log("hvhfv");
         writer.Write(dmg);
         writer.Write(MaxCap);
         writer.Write(Name);

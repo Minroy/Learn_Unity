@@ -1,28 +1,60 @@
+using Cysharp.Threading.Tasks;
+using System.Collections.Generic;
 using UnityEngine;
+
 
 namespace InventoryModule.Packer
 {
-    //PR:HIGH =  TODO: Create A Data writer, Reader
+    //TODO High. Create InstanceDataPackers
     public sealed class InstanceDataWriter : InstanceDataServicePovider
     {
-
         public static InstanceDataWriter Instance { get; } = new();
 
-        public void Write<T>(T data, uint ItemId = default, ulong InstanceId = default)
+        bool isWriting;
+
+        public async void ProcessQueueWrite()
         {
-            ItemId = CurrentItemWriterId;
-            InstanceId = CurrentInstanceWriterId;
-
-            Debug.Log($"{ItemId}it/ {InstanceId}" );
-            if (ItemId == 0 || InstanceId == 0) return;
-
-
-            if (data is null)
-            {
-                WriteNull();
+            // Don't start a second processor.
+            if (isWriting)
                 return;
+
+            isWriting = true;
+
+            while (WaitingListForWriting.Count > 0)
+            {
+                WritingCurrentInstance =
+                    WaitingListForWriting.Dequeue();
+
+                if (WritingCurrentInstance is IInstanceDataPacker packer)
+                {
+                    // THIS writes the entire current instance.
+                    packer.ExecuteWriter(this);
+                }
+
+                // Instance is finished.
+                // Give Unity a frame before processing the next one.
+                await UniTask.Yield();
             }
+
+            isWriting = false;
         }
+
+        public void Write<T>(T data)
+        {
+            if (WritingCurrentInstance is not null)
+            {
+                
+                Debug.Log(WritingCurrentInstance.ItemId +"," + WritingCurrentInstance.InstanceId + "<" + typeof(T));
+            }
+
+
+        }
+
+        public void Write(UnityEngine.Object Object)
+        {
+
+        }
+
 
         private void WriteValueType<T>(T valueType) where T : struct
         {
@@ -42,6 +74,7 @@ namespace InventoryModule.Packer
 
     public sealed class InstanceDataReader : InstanceDataServicePovider
     {
+        public static InstanceDataReader Instance { get; } = new();
         public T Read<T>(T toRead)
         {
             return default(T); // placeholder
@@ -65,13 +98,31 @@ namespace InventoryModule.Packer
     // this is just a Class that both read and write can use. Like
     public class InstanceDataServicePovider
     {
-        protected uint CurrentItemWriterId = 0;
-        protected ulong CurrentInstanceWriterId = 0;
-        protected IInstanceDataPacker ind;
-        public bool Begin(IInstanceable instanceable)
+        protected static Queue<IInstanceable> WaitingListForWriting = new();
+        protected static Queue<IInstanceable> WaitingListForReading = new();
+        protected static IInstanceable WritingCurrentInstance;
+
+        public bool BeginWritingFor(IInstanceable CurrentInstance)
         {
-            CurrentInstanceWriterId = instanceable.InstanceId;
-            CurrentItemWriterId = instanceable.ItemId;
+            Debug.Log("cvhnfuh");
+            if (CurrentInstance is not null)
+            {
+                WaitingListForWriting.Enqueue(CurrentInstance);
+
+                InstanceDataWriter.Instance.ProcessQueueWrite();
+                return true;
+            }
+            return false;
+        }
+
+        public bool BeginReadingFor(IInstanceable CurrentInstance)
+        {
+            if (CurrentInstance is not null)
+            {
+                WaitingListForReading.Enqueue(CurrentInstance);
+            }
+
+
             return true;
         }
     }

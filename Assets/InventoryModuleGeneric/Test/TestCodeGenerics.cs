@@ -11,6 +11,7 @@ public class TestCodeGenerics : MonoBehaviour
     void Start()
     {
         Instantiate(testPotion1);
+        testPotion2 = Instantiate(testPotion1);
     }
 
 

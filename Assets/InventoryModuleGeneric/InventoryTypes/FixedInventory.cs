@@ -3,6 +3,7 @@ using InventoryModule.IDSystem;
 using InventoryModule.UI;
 using System;
 using System.Collections;
+using System.Runtime.CompilerServices;
 using UnityEditor;
 using UnityEngine;
 
@@ -33,7 +34,7 @@ namespace InventoryModule
 
         protected override int TryAdd<TAdd>(TAdd item, int amountToAdd)
         {
-            CheckNullOrEmpty(item, amountToAdd);
+            if (!CheckNullOrEmpty(item, amountToAdd)) return amountToAdd;
 
             int remaining = amountToAdd;
 
@@ -44,7 +45,7 @@ namespace InventoryModule
 
                 if (!Slots[i].IsEmpty && Slots[i].Item.ItemId == item.ItemId)
                 {
-                    remaining = Slots[i].Add(item, remaining); // operate directly on the array element
+                    remaining = Slots[i].Add(item, remaining);
                 }
             }
 
@@ -66,17 +67,17 @@ namespace InventoryModule
         {
             for (int i = 0; i < Slots.Length; i++)
             {
-                Slots[i].Clear();
+                Clear(i);
             }
         }
 
-       
+
         //protected virtual T ClearAndReturn<T>(int index)
         //{
-           
+
         //}
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void Clear(int index)
         {
             Slots[index].Clear();

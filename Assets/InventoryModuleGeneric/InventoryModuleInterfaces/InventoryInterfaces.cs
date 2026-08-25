@@ -1,8 +1,5 @@
 using InventoryModule.Packer;
-using System;
-using System.Collections.Generic;
 using TMPro;
-using Unity.VisualScripting;
 using UnityEngine;
 
 namespace InventoryModule
@@ -86,8 +83,8 @@ namespace InventoryModule
 
     public interface IInstanceDataPacker
     {
-        void ExecuteWriter();
-        void ExecuteReader(); 
+        void ExecuteWriter(InstanceDataWriter writer);
+        void ExecuteReader(InstanceDataReader reader);
 
         /// <summary>
         /// What Data this Instance will have unique. Order of writing Matters.
@@ -104,7 +101,7 @@ namespace InventoryModule
 
     public interface IInstanceDataPackerAuto // todo
     {
-        
+
     }
 }
 
