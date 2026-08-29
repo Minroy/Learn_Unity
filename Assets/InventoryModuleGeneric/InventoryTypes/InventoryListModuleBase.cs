@@ -3,6 +3,7 @@ using InventoryModule.IDSystem;
 
 using System;
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using Unity.Collections.LowLevel.Unsafe;
 
 namespace InventoryModule
@@ -10,7 +11,7 @@ namespace InventoryModule
     /// <summary>
     /// A base Class that All Custom Inventory List Inherit form
     /// </summary>
-    
+
     public abstract class InventoryListModuleBase : IEnumerable
     {
 
@@ -92,17 +93,19 @@ namespace InventoryModule
             return GetEnumerator();
         }
 
-        public void CheckNullOrEmpty<TtoCheck>(TtoCheck item, int amount) where TtoCheck : IItem
+        [DoesNotReturn]
+        public bool CheckNullOrEmpty<TtoCheck>(TtoCheck item, int amount) where TtoCheck : IItem
         {
             if (item == null)
             {
-                throw new ArgumentNullException($"{nameof(TtoCheck)} is null");
+                return false;
             }
             else if (item.ItemId == null)
             {
-                throw new ArgumentNullException($"{nameof(TtoCheck)} has no id");
+                return false;
             }
-            else if (amount < 0) throw new Exception("amount negative");
+            else if (amount < 0) return false;
+            else return true;
 
         }
     }

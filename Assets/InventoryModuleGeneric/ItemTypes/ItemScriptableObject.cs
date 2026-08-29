@@ -2,8 +2,6 @@
 using InventoryModule;
 using InventoryModule.IDSystem.Instance;
 using InventoryModule.Packer;
-using NUnit.Framework;
-using NUnit.Framework.Internal.Execution;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -16,7 +14,7 @@ namespace InventoryModule
 
     public abstract class ItemScriptableObject : ScriptableObject, IItem
     {
-        [SerializeField, HideInInspector] private uint itemId = 0;
+        [SerializeField, HideInInspector] private uint itemId;
         [SerializeField] private int maxAmount;
         [SerializeField] private Sprite icon;
         public uint ItemId => itemId;
@@ -35,14 +33,14 @@ namespace InventoryModule
     /// <summary>
     /// This class makes this Item type of Instance
     /// </summary>
-    public abstract class InstanceItemScriptableObject : ScriptableObject, IInstanceable, IInstanceDataPacker
+    public abstract class InstanceItemScriptableObject : ScriptableObject, IInstanceable, IInstanceDataPacker , IGetType
     {
         [SerializeField, HideInInspector] private uint itemId = 0;
         [SerializeField] private int maxAmount;
         [SerializeField] private Sprite icon;
         [SerializeField] private uint test;
 
-         private ulong instanceID = 0;
+        private ulong instanceID = 0;
         public uint ItemId => itemId == 0 ? 0 : itemId;
 
         public int MaxAmount => maxAmount;
@@ -51,7 +49,7 @@ namespace InventoryModule
 
         public ulong InstanceId { get => instanceID; set => instanceID = value; }
 
-    
+
 
         private void Awake()
         {
@@ -61,8 +59,9 @@ namespace InventoryModule
 
             if (instanceID == 0)
                 instanceID = InstanceIDHandler.GenerateID();
+            InstanceDataWriter.Instance.BeginWritingFor(this);
 
-            ((IInstanceDataPacker)this).ExecuteWriter();
+
 
             Debug.Log($"{itemId}, {instanceID}");
         }
@@ -74,19 +73,14 @@ namespace InventoryModule
             test = id;
         }
 
+        
+
         public abstract void WriteDataToPacker(InstanceDataWriter writer);
         public abstract void ReadDataFormPacker(InstanceDataReader reader);
-        void IInstanceDataPacker.ExecuteWriter()
-        {
-            if (InstanceDataWriter.Instance.Begin(this))
-            {
-                WriteDataToPacker(InstanceDataWriter.Instance);
-            }
-        }
 
-        void IInstanceDataPacker.ExecuteReader()
+        public object GetobjectRef()
         {
-            throw new NotImplementedException();
+            return this;
         }
     }
 }
