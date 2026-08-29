@@ -59,8 +59,6 @@ namespace InventoryModule
 
             if (instanceID == 0)
                 instanceID = InstanceIDHandler.GenerateID();
-
-            Debug.Log("Calling writer");
             InstanceDataWriter.Instance.BeginWritingFor(this);
 
 

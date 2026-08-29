@@ -1,4 +1,5 @@
 using InventoryModule;
+using InventoryModule.Packer;
 using UnityEngine;
 
 public class TestCodeGenerics : MonoBehaviour
@@ -12,6 +13,12 @@ public class TestCodeGenerics : MonoBehaviour
     {
         Instantiate(testPotion1);
         testPotion2 = Instantiate(testPotion1);
+        for (int i = 0; i < 10000; i++)
+        {
+            Instantiate(testPotion2);
+               
+        }
+        InstanceDataWriter.Instance.ProcessQueueWriteAysnc();
     }
 
 

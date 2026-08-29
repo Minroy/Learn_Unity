@@ -24,22 +24,21 @@ namespace InventoryModule.Packer
             while (WaitingListForWriting.Count > 0)
             {
                 currentPoints++;
-                if (BreakPoint >= currentPoints)
-                {
-                    await UniTask.Yield();
-                    currentPoints = 0;
-                }
 
                 WritingCurrentInstance = WaitingListForWriting.Dequeue();
 
-                // check which item is current being written
                 if (WritingCurrentInstance is IInstanceDataPacker packer)
                 {
-                    packer.WriteDataToPacker(Instance);
+                    packer.WriteDataToPacker(this);
                 }
 
-
                 WritingCurrentInstance = null;
+
+                if (currentPoints >= BreakPoint)
+                {
+                    currentPoints = 0;
+                    await UniTask.Yield();
+                }
             }
 
             isWriting = false;
@@ -54,8 +53,7 @@ namespace InventoryModule.Packer
         {
             if (WritingCurrentInstance is not null)
             {
-
-                Debug.Log(WritingCurrentInstance.ItemId + "," + WritingCurrentInstance.InstanceId + "<" + typeof(T));
+                Debug.Log(WritingCurrentInstance.ItemId + "," + WritingCurrentInstance.InstanceId);
             }
 
 
@@ -115,7 +113,6 @@ namespace InventoryModule.Packer
 
         public bool BeginWritingFor(IInstanceable CurrentInstance)
         {
-            Debug.Log("cvhnfuh");
             if (CurrentInstance is not null)
             {
                 WaitingListForWriting.Enqueue(CurrentInstance);
