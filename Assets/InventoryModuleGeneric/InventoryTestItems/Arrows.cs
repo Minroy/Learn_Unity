@@ -25,6 +25,7 @@ public class Arrows : InstanceItemScriptableObject
         writer.Write(dmg);
         writer.Write(MaxCap);
         writer.Write(Name);
+        
     }
 }
 

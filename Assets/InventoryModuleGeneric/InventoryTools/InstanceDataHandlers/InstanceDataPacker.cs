@@ -12,45 +12,56 @@ namespace InventoryModule.Packer
 
         bool isWriting;
 
-        public async void ProcessQueueWrite()
+        public async void ProcessQueueWriteAysnc()
         {
-            // Don't start a second processor.
             if (isWriting)
                 return;
 
             isWriting = true;
-
+            var BreakPoint = 5; // amount of items to process before returning frame back to unity. 
+            var currentPoints = 0;
+            
             while (WaitingListForWriting.Count > 0)
             {
-                WritingCurrentInstance =
-                    WaitingListForWriting.Dequeue();
-
-                if (WritingCurrentInstance is IInstanceDataPacker packer)
+                currentPoints++;
+                if (BreakPoint >= currentPoints)
                 {
-                    // THIS writes the entire current instance.
-                    packer.ExecuteWriter(this);
+                    await UniTask.Yield();
+                    currentPoints = 0;
                 }
 
-                // Instance is finished.
-                // Give Unity a frame before processing the next one.
-                await UniTask.Yield();
+                WritingCurrentInstance = WaitingListForWriting.Dequeue();
+
+                // check which item is current being written
+                if (WritingCurrentInstance is IInstanceDataPacker packer)
+                {
+                    packer.WriteDataToPacker(Instance);
+                }
+
+
+                WritingCurrentInstance = null;
             }
 
             isWriting = false;
+        }
+
+        public void InstantWrite<T>(T data)
+        {
+            Write(data);
         }
 
         public void Write<T>(T data)
         {
             if (WritingCurrentInstance is not null)
             {
-                
-                Debug.Log(WritingCurrentInstance.ItemId +"," + WritingCurrentInstance.InstanceId + "<" + typeof(T));
+
+                Debug.Log(WritingCurrentInstance.ItemId + "," + WritingCurrentInstance.InstanceId + "<" + typeof(T));
             }
 
 
         }
 
-        public void Write(UnityEngine.Object Object)
+        public void Write(Object Object)
         {
 
         }
@@ -108,8 +119,6 @@ namespace InventoryModule.Packer
             if (CurrentInstance is not null)
             {
                 WaitingListForWriting.Enqueue(CurrentInstance);
-
-                InstanceDataWriter.Instance.ProcessQueueWrite();
                 return true;
             }
             return false;
@@ -121,8 +130,6 @@ namespace InventoryModule.Packer
             {
                 WaitingListForReading.Enqueue(CurrentInstance);
             }
-
-
             return true;
         }
     }

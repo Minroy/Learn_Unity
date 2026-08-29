@@ -33,7 +33,7 @@ namespace InventoryModule
     /// <summary>
     /// This class makes this Item type of Instance
     /// </summary>
-    public abstract class InstanceItemScriptableObject : ScriptableObject, IInstanceable, IInstanceDataPacker
+    public abstract class InstanceItemScriptableObject : ScriptableObject, IInstanceable, IInstanceDataPacker , IGetType
     {
         [SerializeField, HideInInspector] private uint itemId = 0;
         [SerializeField] private int maxAmount;
@@ -75,22 +75,14 @@ namespace InventoryModule
             test = id;
         }
 
-
-        void IInstanceDataPacker.ExecuteWriter(InstanceDataWriter writer)
-        {
-            WriteDataToPacker(writer);
-
-        }
-
-        void IInstanceDataPacker.ExecuteReader(InstanceDataReader reader)
-        {
-            if (InstanceDataReader.Instance.BeginReadingFor(this))
-            {
-                ReadDataFormPacker(InstanceDataReader.Instance);
-            }
-        }
+        
 
         public abstract void WriteDataToPacker(InstanceDataWriter writer);
         public abstract void ReadDataFormPacker(InstanceDataReader reader);
+
+        public object GetobjectRef()
+        {
+            return this;
+        }
     }
 }

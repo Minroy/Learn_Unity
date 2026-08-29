@@ -1,4 +1,5 @@
 using InventoryModule.Packer;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 
@@ -62,6 +63,11 @@ namespace InventoryModule
 
     }
 
+    public interface IGetType
+    {
+        public object GetobjectRef();
+    }
+
     //Custom StackLogic, shoudld this item stack or not.
     public interface IStackable
     {
@@ -83,9 +89,6 @@ namespace InventoryModule
 
     public interface IInstanceDataPacker
     {
-        void ExecuteWriter(InstanceDataWriter writer);
-        void ExecuteReader(InstanceDataReader reader);
-
         /// <summary>
         /// What Data this Instance will have unique. Order of writing Matters.
         /// </summary>
@@ -102,7 +105,7 @@ namespace InventoryModule
     public interface IInstanceDataPackerAuto // todo
     {
 
-    }
+    } 
 }
 
 namespace InventoryModule.Tasking
