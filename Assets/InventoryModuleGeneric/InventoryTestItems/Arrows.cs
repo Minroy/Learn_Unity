@@ -6,25 +6,19 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "Arrows", menuName = "Scriptable Objects/Arrows")]
 public class Arrows : InstanceItemScriptableObject
 {
-    public int dmg = 12;
-    public int MaxCap = 122;
-    public string Name;
-
-    public Arrows aa;
-
-    public override void ReadDataFormPacker(InstanceDataReader reader)
+    public override void DeserializeData(InstanceDataReader reader)
     {
-        dmg = reader.Read(dmg);
-        MaxCap = reader.Read(MaxCap);
-        Name = reader.Read(Name);
+       
     }
 
-    public override void WriteDataToPacker(InstanceDataWriter writer)
+    public override void SerializeData(InstanceDataWriter writer)
     {
-        writer.Write(dmg);
-        writer.Write(MaxCap);
-        writer.Write(Name);
         
     }
+}
+
+public struct Waste
+{
+
 }
 

@@ -33,7 +33,7 @@ namespace InventoryModule
     /// <summary>
     /// This class makes this Item type of Instance
     /// </summary>
-    public abstract class InstanceItemScriptableObject : ScriptableObject, IInstanceable, IInstanceDataPacker , IGetType
+    public abstract class InstanceItemScriptableObject : ScriptableObject, IInstanceable , IInstanceDataPacker
     {
         [SerializeField, HideInInspector] private uint itemId = 0;
         [SerializeField] private int maxAmount;
@@ -49,7 +49,19 @@ namespace InventoryModule
 
         public ulong InstanceId { get => instanceID; set => instanceID = value; }
 
+        public void ReadDataFormPacker(InstanceDataReader reader)
+        {
+            DeserializeData(reader);
+        }
 
+        public void WriteDataToPacker(InstanceDataWriter writer)
+        {
+            SerializeData(writer);
+        }
+
+        public abstract void DeserializeData(InstanceDataReader reader);
+        public abstract void SerializeData(InstanceDataWriter writer);
+       
 
         private void Awake()
         {
@@ -59,11 +71,8 @@ namespace InventoryModule
 
             if (instanceID == 0)
                 instanceID = InstanceIDHandler.GenerateID();
-            InstanceDataWriter.Instance.BeginWritingFor(this);
 
-
-
-            Debug.Log($"{itemId}, {instanceID}");
+            InstanceDataWriter.Instance.BeginWriting(this);
         }
 
         //expicit to prevent external for rewriting 
@@ -71,16 +80,6 @@ namespace InventoryModule
         {
             itemId = id;
             test = id;
-        }
-
-        
-
-        public abstract void WriteDataToPacker(InstanceDataWriter writer);
-        public abstract void ReadDataFormPacker(InstanceDataReader reader);
-
-        public object GetobjectRef()
-        {
-            return this;
         }
     }
 }

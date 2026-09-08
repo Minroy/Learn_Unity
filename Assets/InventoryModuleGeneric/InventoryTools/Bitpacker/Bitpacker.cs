@@ -1,252 +1,247 @@
 using System;
-using System.Collections;
+using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace InventoryModule.Packer
 {
     #region Bit Writer
 
-    public sealed class BitWriter : IDisposable
+    /// <summary>
+    /// uses Byte-Aligned Packing for Converting Data to bits
+    /// </summary>
+    public class ByteWriter : IDisposable /* IAsyncDisposable*/
     {
-        private readonly MemoryStream _stream;
-        private readonly BinaryWriter _writer;
-        private byte _currentByte;
-        private int _bitPosition; // 0-7, number of bits written to current byte
-        private bool _disposed;
+        private byte[] buffer;
 
-        public BitWriter()
+        /// <summary>
+        /// Current write position in bytes.
+        /// </summary>
+        public int Position { get; private set; }
+
+
+        public ByteWriter(int capacity = 256)
         {
-            _stream = new MemoryStream();
-            _writer = new BinaryWriter(_stream, Encoding.UTF8, true);
-            _bitPosition = 0;
+            buffer = new byte[capacity];
+            Position = 0;
         }
+        // resets position to Zero. 
+        public void Reset()
+        {
+            Position = 0;
+        }
+
+        public ReadOnlySpan<byte> AsSpan() => buffer.AsSpan(0, Position);
 
         public byte[] ToArray()
         {
-            Flush();
-            return _stream.ToArray();
+            byte[] result = new byte[Position];
+            Array.Copy(buffer, 0, result, 0, Position);
+            return result;
         }
 
-        public void WriteBit(bool bit)
+        // checks if the Current buffer has enough buffer bytes left to Write too.
+        //if not then it just resizes the array
+        public void EnsureCapacity(int bytesToWrite)
         {
-            if (bit) _currentByte |= (byte)(1 << _bitPosition);
-            _bitPosition++;
-            if (_bitPosition == 8) FlushByte();
-        }
-
-        public void WriteBool(bool value) => WriteBit(value);
-
-        public void WriteByte(byte value)
-        {
-            Flush();
-            _writer.Write(value);
-        }
-
-        public void WriteSByte(sbyte value) { Flush(); _writer.Write(value); }
-        public void WriteShort(short value) { Flush(); _writer.Write(value); }
-        public void WriteUShort(ushort value) { Flush(); _writer.Write(value); }
-        public void WriteInt(int value) { Flush(); _writer.Write(value); }
-        public void WriteUInt(uint value) { Flush(); _writer.Write(value); }
-        public void WriteLong(long value) { Flush(); _writer.Write(value); }
-        public void WriteULong(ulong value) { Flush(); _writer.Write(value); }
-        public void WriteFloat(float value) { Flush(); _writer.Write(value); }
-        public void WriteDouble(double value) { Flush(); _writer.Write(value); }
-        public void WriteChar(char value) { Flush(); _writer.Write(value); }
-
-        public void WriteString(string value)
-        {
-            if (value == null)
+            if (Position + bytesToWrite > buffer.Length)
             {
-                WriteInt(-1);
+                int newCapacity = Math.Max(buffer.Length * 2, Position + bytesToWrite);
+                Array.Resize(ref buffer, newCapacity);
+            }
+        }
+        public void Write(bool value)
+        {
+            EnsureCapacity(1);
+            buffer[Position++] = (byte)(value ? 1 : 0);
+        }
+
+        #region INTS_BITPACKING
+        public void Write(byte value)
+        {
+            EnsureCapacity(1);
+            buffer[Position++] = value;
+        }
+        public void Write(sbyte value)
+        {
+            EnsureCapacity(1);
+            buffer[Position++] = (byte)value;
+        }
+
+        public void Write(short value)
+        {
+            EnsureCapacity(2);
+            BinaryPrimitives.WriteInt16LittleEndian(buffer.AsSpan(), value);
+            Position += 2;
+        }
+        public void Write(ushort value)
+        {
+            EnsureCapacity(2);
+            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(), value);
+            Position += 2;
+        }
+
+        public void Write(int value)
+        {
+            EnsureCapacity(4);
+            BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(), value);
+            Position += 4;
+        }
+        public void Write(uint value)
+        {
+            EnsureCapacity(4);
+            BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(), value);
+            Position += 4;
+        }
+
+        public void Write(long value)
+        {
+            EnsureCapacity(8);
+            BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(Position), value);
+            Position += 8;
+        }
+
+        public void Write(ulong value)
+        {
+            EnsureCapacity(8);
+            BinaryPrimitives.WriteUInt64LittleEndian(buffer.AsSpan(Position), value);
+            Position += 8;
+        }
+        #endregion
+
+        public void Write(float value)
+        {
+            int IntValue = BitConverter.SingleToInt32Bits(value);
+            Write(IntValue);
+        }
+
+        public void Write(double value)
+        {
+            long LongValue = BitConverter.DoubleToInt64Bits(value);
+            Write(LongValue);
+        }
+
+        public void Write(decimal value)
+        {
+            int[] bits = decimal.GetBits(value);
+            for (int i = 0; i < bits.Length; i++)
+            {
+                Write(bits[i]);
+            }
+        }
+        public void Write(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                Write(0); // Length prefix = 0
                 return;
             }
 
-            if (value == string.Empty)
-            {
-                WriteInt(0);
-                return;
-            }
+            int byteCount = Encoding.UTF8.GetByteCount(value);
+            Write(byteCount); // 4-byte length prefix
 
-            byte[] bytes = Encoding.UTF8.GetBytes(value);
-            WriteInt(bytes.Length);
-            Flush();
-            _writer.Write(bytes);
+            EnsureCapacity(byteCount);
+            Encoding.UTF8.GetBytes(value, 0, value.Length, buffer, Position);
+            Position += byteCount;
         }
 
-        public void WriteBytes(byte[] value)
+        public void Write(char value)
         {
-            if (value == null)
-            {
-                WriteInt(-1);
-                return;
-            }
-
-            if (value.Length == 0)
-            {
-                WriteInt(0);
-                return;
-            }
-
-            WriteInt(value.Length);
-            Flush();
-            _writer.Write(value);
+            EnsureCapacity(2);
+            BinaryPrimitives.WriteInt16LittleEndian(buffer.AsSpan(Position), (short)value);
+            Position += 2;
         }
 
-        private void FlushByte()
+        public void WriteNull()
         {
-            if (_bitPosition > 0)
+            Write(false);
+        }
+
+        //Todo
+        public void Write<TEnum>(TEnum value) where TEnum : struct, Enum
+        {
+
+        }
+
+
+        public void Write<T>(IList<T> list)
+        {
+            try
             {
-                _writer.Write(_currentByte);
-                _currentByte = 0;
-                _bitPosition = 0;
+                if (list == null)
+                {
+                    Write((sbyte)-1);
+                    return;
+                }
+
+                Write((ushort)list.Count);
+
+                foreach (var value in list)
+                {
+                    WriteValue(value);
+                }
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($"{typeof(T)} is not supported for serialization\n{ex}");
             }
         }
 
-        public void Flush()
+        private void WriteValue(object value)
         {
-            FlushByte();
-            _writer.Flush();
+            switch (value)
+            {
+                case bool b: Write(b); break;
+                case byte b: Write(b); break;
+                case sbyte sb: Write(sb); break;
+                case short s: Write(s); break;
+                case ushort us: Write(us); break;
+                case int i: Write(i); break;
+                case uint ui: Write(ui); break;
+                case long l: Write(l); break;
+                case ulong ul: Write(ul); break;
+                case float f: Write(f); break;
+                case double d: Write(d); break;
+                case decimal dec: Write(dec); break;
+                case char c: Write(c); break;
+                case string s: Write(s); break;
+                default:
+                    throw new NotSupportedException($"Type {value?.GetType()} not supported");
+            }
         }
 
+        public void ClearBufferData()
+        {
+            buffer = Array.Empty<byte>();
+            Position = 0;
+        }
         public void Dispose()
         {
-            if (!_disposed)
-            {
-                Flush();
-                _writer.Dispose();
-                _stream.Dispose();
-                _disposed = true;
-            }
+
         }
+
+        //public ValueTask DisposeAsync()
+        //{
+        //    throw new NotImplementedException();
+        //}
     }
 
     #endregion
 
     #region Bit Reader
 
-    public sealed class BitReader : IDisposable
+    public sealed class BitReader : IDisposable, IAsyncDisposable
     {
-        private readonly MemoryStream _stream;
-        private readonly BinaryReader _reader;
-        private byte _currentByte;
-        private int _bitPosition; // 0-7, number of bits consumed from current byte
-        private bool _hasByte; // Whether we have a byte buffered
-        private bool _disposed;
-
-        public BitReader(byte[] data)
-        {
-            _stream = new MemoryStream(data);
-            _reader = new BinaryReader(_stream, Encoding.UTF8, true);
-            _bitPosition = 0;
-            _hasByte = false;
-        }
-
-        public bool EndOfStream => !_hasByte && _stream.Position >= _stream.Length;
-
-        public bool ReadBit()
-        {
-            // If we don't have a byte buffered, read one
-            if (!_hasByte)
-            {
-                if (_stream.Position >= _stream.Length)
-                    return false;
-                    
-                _currentByte = _reader.ReadByte();
-                _bitPosition = 0;
-                _hasByte = true;
-            }
-
-            bool result = ((_currentByte >> _bitPosition) & 1) != 0;
-            _bitPosition++;
-
-            // If we've consumed all 8 bits, clear the buffer
-            if (_bitPosition >= 8)
-            {
-                _hasByte = false;
-                _bitPosition = 0;
-            }
-
-            return result;
-        }
-
-        public bool ReadBool() => ReadBit();
-
-        public byte ReadByte()
-        {
-            Align();
-            return _reader.ReadByte();
-        }
-
-        public sbyte ReadSByte() { Align(); return _reader.ReadSByte(); }
-        public short ReadShort() { Align(); return _reader.ReadInt16(); }
-        public ushort ReadUShort() { Align(); return _reader.ReadUInt16(); }
-        public int ReadInt() { Align(); return _reader.ReadInt32(); }
-        public uint ReadUInt() { Align(); return _reader.ReadUInt32(); }
-        public long ReadLong() { Align(); return _reader.ReadInt64(); }
-        public ulong ReadULong() { Align(); return _reader.ReadUInt64(); }
-        public float ReadFloat() { Align(); return _reader.ReadSingle(); }
-        public double ReadDouble() { Align(); return _reader.ReadDouble(); }
-        public char ReadChar() { Align(); return _reader.ReadChar(); }
-
-        public string ReadString()
-        {
-            int length = ReadInt();
-
-            if (length == -1)
-                return null;
-
-            if (length == 0)
-                return string.Empty;
-
-            Align();
-            byte[] bytes = _reader.ReadBytes(length);
-            return Encoding.UTF8.GetString(bytes);
-        }
-
-        public byte[] ReadBytes()
-        {
-            int length = ReadInt();
-
-            if (length == -1)
-                return null;
-
-            if (length == 0)
-                return Array.Empty<byte>();
-
-            Align();
-            return _reader.ReadBytes(length);
-        }
-
-        public byte[] ReadBytes(int count)
-        {
-            Align();
-            return _reader.ReadBytes(count);
-        }
-
-        private void Align()
-        {
-            // If we have a partially consumed byte, discard it
-            if (_hasByte)
-            {
-                _hasByte = false;
-                _bitPosition = 0;
-                // Note: The remaining bits in the current byte are lost
-                // This is fine because we're aligning to a byte boundary
-            }
-        }
-
         public void Dispose()
         {
-            if (!_disposed)
-            {
-                _reader.Dispose();
-                _stream.Dispose();
-                _disposed = true;
-            }
+
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            throw new NotImplementedException();
         }
     }
-
     #endregion
 }
