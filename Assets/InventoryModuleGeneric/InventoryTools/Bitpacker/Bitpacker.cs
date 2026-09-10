@@ -1,6 +1,7 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -72,26 +73,26 @@ namespace InventoryModule.Packer
         public void Write(short value)
         {
             EnsureCapacity(2);
-            BinaryPrimitives.WriteInt16LittleEndian(buffer.AsSpan(), value);
+            BinaryPrimitives.WriteInt16LittleEndian(buffer.AsSpan(Position), value);
             Position += 2;
         }
         public void Write(ushort value)
         {
             EnsureCapacity(2);
-            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(), value);
+            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(Position), value);
             Position += 2;
         }
 
         public void Write(int value)
         {
             EnsureCapacity(4);
-            BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(), value);
+            BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(Position), value);
             Position += 4;
         }
         public void Write(uint value)
         {
             EnsureCapacity(4);
-            BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(), value);
+            BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(Position), value);
             Position += 4;
         }
 
@@ -153,6 +154,7 @@ namespace InventoryModule.Packer
             Position += 2;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteNull()
         {
             Write(false);
@@ -167,53 +169,69 @@ namespace InventoryModule.Packer
 
         public void Write<T>(IList<T> list)
         {
-            try
+            if (list == null)
             {
-                if (list == null)
-                {
-                    Write((sbyte)-1);
-                    return;
-                }
-
-                Write((ushort)list.Count);
-
-                foreach (var value in list)
-                {
-                    WriteValue(value);
-                }
+                Write((int)-1);
+                return;
             }
-            catch (Exception ex)
+
+            Write(list.Count);
+
+            for (int i = 0; i < list.Count; i++)
             {
-                UnityEngine.Debug.LogWarning($"{typeof(T)} is not supported for serialization\n{ex}");
+                // Direct method dispatch for primitives
+                WriteItem(list[i]);
             }
         }
 
-        private void WriteValue(object value)
+        public void Write(IList<int> list)
         {
-            switch (value)
+            if (list == null) { Write(-1); return; }
+            Write(list.Count);
+            for (int i = 0; i < list.Count; i++) Write(list[i]);
+        }
+
+        public void Write(IList<float> list)
+        {
+            if (list == null) { Write(-1); return; }
+            Write(list.Count);
+            for (int i = 0; i < list.Count; i++) Write(list[i]);
+        }
+
+        public void Write(IList<string> list)
+        {
+            if (list == null) { Write(-1); return; }
+            Write(list.Count);
+            for (int i = 0; i < list.Count; i++) Write(list[i]);
+        }
+        private void WriteItem<T>(T item)
+        {
+            // Pattern matching directly on generic T (no boxing occurs!)
+            switch (item)
             {
-                case bool b: Write(b); break;
-                case byte b: Write(b); break;
-                case sbyte sb: Write(sb); break;
-                case short s: Write(s); break;
-                case ushort us: Write(us); break;
-                case int i: Write(i); break;
-                case uint ui: Write(ui); break;
-                case long l: Write(l); break;
-                case ulong ul: Write(ul); break;
-                case float f: Write(f); break;
-                case double d: Write(d); break;
-                case decimal dec: Write(dec); break;
-                case char c: Write(c); break;
-                case string s: Write(s); break;
+                case bool v: Write(v); break;
+                case byte v: Write(v); break;
+                case sbyte v: Write(v); break;
+                case short v: Write(v); break;
+                case ushort v: Write(v); break;
+                case int v: Write(v); break;
+                case uint v: Write(v); break;
+                case long v: Write(v); break;
+                case ulong v: Write(v); break;
+                case float v: Write(v); break;
+                case double v: Write(v); break;
+                case decimal v: Write(v); break;
+                case char v: Write(v); break;
+                case string v: Write(v); break;
                 default:
-                    throw new NotSupportedException($"Type {value?.GetType()} not supported");
+                    throw new NotSupportedException($"Type {typeof(T)} is not supported for serialization.");
             }
         }
 
         public void ClearBufferData()
         {
             buffer = Array.Empty<byte>();
+            Array.Resize(ref buffer, 256);
             Position = 0;
         }
         public void Dispose()

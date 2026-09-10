@@ -6,6 +6,10 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "Arrows", menuName = "Scriptable Objects/Arrows")]
 public class Arrows : InstanceItemScriptableObject
 {
+    int gagga = 1233;
+    int gagdga = 1233;
+    int gaggda = 1233;
+    int gaddgga = 1233;
     public override void DeserializeData(InstanceDataReader reader)
     {
        
@@ -13,7 +17,10 @@ public class Arrows : InstanceItemScriptableObject
 
     public override void SerializeData(InstanceDataWriter writer)
     {
-        
+        writer.Write(gagga);
+        writer.Write(gagdga);
+        writer.Write(gaggda);
+        writer.Write(gaddgga);
     }
 }
 

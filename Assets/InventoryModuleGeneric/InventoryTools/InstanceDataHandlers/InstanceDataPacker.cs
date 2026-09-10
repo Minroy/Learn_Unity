@@ -1,27 +1,28 @@
 using Cysharp.Threading.Tasks;
-using InventoryModule.Data;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using UnityEngine;
 
 
 namespace InventoryModule.Packer
 {
-    
+
 
     public sealed class InstanceDataWriter : InstanceDataServicePovider
     {
         public static InstanceDataWriter Instance = new InstanceDataWriter();
 
-        private ByteWriter ByteWriter = new ByteWriter();
+        private ByteWriter _byteWriter = new ByteWriter();
+
 
         bool isWriting;
 
         public async UniTask ProcessWrite()
         {
-            
+
             if (Instance.isWriting) return;
 
             Instance.isWriting = true;
@@ -35,16 +36,18 @@ namespace InventoryModule.Packer
                         try
                         {
                             packer.WriteDataToPacker(Instance);
-                            byte[] Bytes = ByteWriter.ToArray();
-                            
+
+                            //Error Fix. Dont remove
+                            //Designed to fix a Issue with readonlyspans not being allowed in async methods. 
+                            StoreBufferDataToFile(Instance._byteWriter);
+
                             //some sotrage here 
 
-                            ByteWriter.Reset();
+                            Instance._byteWriter.Reset();
                         }
                         catch (Exception ex)
                         {
-                            ByteWriter.Reset();
-                            Instance.isWriting = false;
+                            Instance._byteWriter.Reset();
                             Debug.LogError($"Serialization failed: {ex}");
                         }
                     }
@@ -58,37 +61,100 @@ namespace InventoryModule.Packer
             }
         }
 
-        public void Write(bool value) => ByteWriter.Write(value);
+        private void StoreBufferDataToFile(ByteWriter byteWriter)
+        {
+           ReadOnlySpan<byte> Data = byteWriter.AsSpan();
+        }
 
-        public void Write(byte value) => ByteWriter.Write(value);
-        public void Write(sbyte value) => ByteWriter.Write(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(bool value) => Instance._byteWriter.Write(value);
 
-        public void Write(short value) => ByteWriter.Write(value);
-        public void Write(ushort value) => ByteWriter.Write(value);
 
-        public void Write(int value) => ByteWriter.Write(value);
-        public void Write(uint value) => ByteWriter.Write(value);
 
-        public void Write(long value) => ByteWriter.Write(value);
-        public void Write(ulong value) => ByteWriter.Write(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(byte value) => Instance._byteWriter.Write(value);
 
-        public void Write(float value) => ByteWriter.Write(value);
-        public void Write(double value) => ByteWriter.Write(value);
-        public void Write(decimal value) => ByteWriter.Write(value);
 
-        public void Write(char value) => ByteWriter.Write(value);
-        public void Write(string value) => ByteWriter.Write(value);
 
-        public void Write<T>(IList<T> list) => ByteWriter.Write(list);
-        public void Write<TEnum>(TEnum value) where TEnum : struct, System.Enum => ByteWriter.Write(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(sbyte value) => Instance._byteWriter.Write(value);
 
-        public void WriteNull() => ByteWriter.WriteNull();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(short value) => Instance._byteWriter.Write(value);
+
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(ushort value) => Instance._byteWriter.Write(value);
+
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(int value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(uint value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(long value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(ulong value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(float value) => Instance._byteWriter.Write(value);
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(double value) => Instance._byteWriter.Write(value);
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(decimal value) => Instance._byteWriter.Write(value);
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(char value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(string value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write<T>(IList<T> list) => Instance._byteWriter.Write(list);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write<TEnum>(TEnum value) where TEnum : struct, System.Enum => Instance._byteWriter.Write(value);
+
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void WriteNull() => Instance._byteWriter.WriteNull();
 
         public void Write(UnityEngine.Object value)
         {
 
         }
 
+
+        [MethodImpl]
         public void Write(Transform transform)
         {
             Write(transform.position.x);
@@ -103,6 +169,24 @@ namespace InventoryModule.Packer
             Write(transform.localScale.x);
             Write(transform.localScale.y);
             Write(transform.localScale.z);
+        }
+
+        public void Write(Vector2 Vector2)
+        {
+            Write(Vector2.x);
+            Write(Vector2.y);
+        }
+        public void Write(Vector3 Vector3)
+        {
+            Write(Vector3.x);
+            Write(Vector3.y);
+            Write(Vector3.z);
+        }
+        public void Write(Vector4 Vector4)
+        {
+            Write(Vector4.x);
+            Write(Vector4.y);
+            Write(Vector4.z);
         }
     }
 
