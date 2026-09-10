@@ -1,133 +1,220 @@
 using Cysharp.Threading.Tasks;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using UnityEngine;
 
 
 namespace InventoryModule.Packer
 {
-    //TODO High. Create InstanceDataPackers
+
+
     public sealed class InstanceDataWriter : InstanceDataServicePovider
     {
-        public static InstanceDataWriter Instance { get; } = new();
+        public static InstanceDataWriter Instance = new InstanceDataWriter();
+
+        private ByteWriter _byteWriter = new ByteWriter();
+
 
         bool isWriting;
 
-        public async void ProcessQueueWriteAysnc()
+        public async UniTask ProcessWrite()
         {
-            if (isWriting)
-                return;
 
-            isWriting = true;
-            var BreakPoint = 5; // amount of items to process before returning frame back to unity. 
-            var currentPoints = 0;
-            
-            while (WaitingListForWriting.Count > 0)
+            if (Instance.isWriting) return;
+
+            Instance.isWriting = true;
+
+            try
             {
-                currentPoints++;
-
-                WritingCurrentInstance = WaitingListForWriting.Dequeue();
-
-                if (WritingCurrentInstance is IInstanceDataPacker packer)
+                while (waitingListForWriting.TryDequeue(out var ItemToPacker))
                 {
-                    packer.WriteDataToPacker(this);
-                }
+                    if (ItemToPacker is IInstanceDataPacker packer)
+                    {
+                        try
+                        {
+                            packer.WriteDataToPacker(Instance);
 
-                WritingCurrentInstance = null;
+                            //Error Fix. Dont remove
+                            //Designed to fix a Issue with readonlyspans not being allowed in async methods. 
+                            StoreBufferDataToFile(Instance._byteWriter);
 
-                if (currentPoints >= BreakPoint)
-                {
-                    currentPoints = 0;
-                    await UniTask.Yield();
+                            //some sotrage here 
+
+                            Instance._byteWriter.Reset();
+                        }
+                        catch (Exception ex)
+                        {
+                            Instance._byteWriter.Reset();
+                            Debug.LogError($"Serialization failed: {ex}");
+                        }
+                    }
+
+                    await UniTask.NextFrame();
                 }
             }
-
-            isWriting = false;
-        }
-
-        public void InstantWrite<T>(T data)
-        {
-            Write(data);
-        }
-
-        public void Write<T>(T data)
-        {
-            if (WritingCurrentInstance is not null)
+            finally
             {
-                Debug.Log(WritingCurrentInstance.ItemId + "," + WritingCurrentInstance.InstanceId);
+                Instance.isWriting = false;
             }
-
-
         }
 
-        public void Write(Object Object)
+        private void StoreBufferDataToFile(ByteWriter byteWriter)
+        {
+           ReadOnlySpan<byte> Data = byteWriter.AsSpan();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(bool value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(byte value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(sbyte value) => Instance._byteWriter.Write(value);
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(short value) => Instance._byteWriter.Write(value);
+
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(ushort value) => Instance._byteWriter.Write(value);
+
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(int value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(uint value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(long value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(ulong value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(float value) => Instance._byteWriter.Write(value);
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(double value) => Instance._byteWriter.Write(value);
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(decimal value) => Instance._byteWriter.Write(value);
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(char value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(string value) => Instance._byteWriter.Write(value);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write<T>(IList<T> list) => Instance._byteWriter.Write(list);
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write<TEnum>(TEnum value) where TEnum : struct, System.Enum => Instance._byteWriter.Write(value);
+
+
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void WriteNull() => Instance._byteWriter.WriteNull();
+
+        public void Write(UnityEngine.Object value)
         {
 
         }
 
 
-        private void WriteValueType<T>(T valueType) where T : struct
+        [MethodImpl]
+        public void Write(Transform transform)
         {
+            Write(transform.position.x);
+            Write(transform.position.y);
+            Write(transform.position.z);
 
+            Write(transform.rotation.x);
+            Write(transform.rotation.y);
+            Write(transform.rotation.z);
+            Write(transform.rotation.w);
+
+            Write(transform.localScale.x);
+            Write(transform.localScale.y);
+            Write(transform.localScale.z);
         }
 
-        private void WriteRefTypes<T>(T RefValue) where T : class
+        public void Write(Vector2 Vector2)
         {
-
+            Write(Vector2.x);
+            Write(Vector2.y);
         }
-
-        private void WriteNull()
+        public void Write(Vector3 Vector3)
         {
-            // 
+            Write(Vector3.x);
+            Write(Vector3.y);
+            Write(Vector3.z);
+        }
+        public void Write(Vector4 Vector4)
+        {
+            Write(Vector4.x);
+            Write(Vector4.y);
+            Write(Vector4.z);
         }
     }
 
     public sealed class InstanceDataReader : InstanceDataServicePovider
     {
-        public static InstanceDataReader Instance { get; } = new();
-        public T Read<T>(T toRead)
-        {
-            return default(T); // placeholder
-        }
 
-        public void Read<T>(out T value)
-        {
-            value = default(T);
-        }
 
-        private T ReadValueType<T>(T ValueType) where T : struct
-        {
-            return default(T);
-        }
-        private T ReadRefType<T>(T RefType) where T : class
-        {
-            return default(T);
-        }
     }
 
-    // this is just a Class that both read and write can use. Like
+    // this is just a Class that both read and write can use
     public class InstanceDataServicePovider
     {
-        protected static Queue<IInstanceable> WaitingListForWriting = new();
-        protected static Queue<IInstanceable> WaitingListForReading = new();
-        protected static IInstanceable WritingCurrentInstance;
+        protected static ConcurrentQueue<IInstanceable> waitingListForWriting = new ConcurrentQueue<IInstanceable>();
+        protected static ConcurrentQueue<IInstanceable> waitingListForReading = new ConcurrentQueue<IInstanceable>();
 
-        public bool BeginWritingFor(IInstanceable CurrentInstance)
+        public void BeginWriting(IInstanceable instance)
         {
-            if (CurrentInstance is not null)
-            {
-                WaitingListForWriting.Enqueue(CurrentInstance);
-                return true;
-            }
-            return false;
+            if (instance == null) return;
+
+            waitingListForWriting.Enqueue(instance);
+            InstanceDataWriter.Instance.ProcessWrite().Forget();
+        }
+        public void BeginReading(IInstanceable instance)
+        {
+            if (instance == null) return;
+
+            waitingListForReading.Enqueue(instance);
         }
 
-        public bool BeginReadingFor(IInstanceable CurrentInstance)
-        {
-            if (CurrentInstance is not null)
-            {
-                WaitingListForReading.Enqueue(CurrentInstance);
-            }
-            return true;
-        }
     }
 }
