@@ -1,5 +1,4 @@
 using InventoryModule.Packer;
-using System.Collections;
 using TMPro;
 using UnityEngine;
 
@@ -105,10 +104,19 @@ namespace InventoryModule
     public interface IInstanceDataPackerAuto // todo
     {
 
-    } 
+    }
 }
 
-namespace InventoryModule.Tasking
+namespace InventoryModule.Packer
 {
+    public interface ISerializable
+    {
+        public void OnWrite(InstanceDataWriter writer);
+    }
+
+    public interface IDeserializable
+    {
+        public void OnRead(InstanceDataReader reader);
+    }
 
 }

@@ -3,7 +3,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
 using UnityEngine;
 
 
@@ -13,41 +12,51 @@ namespace InventoryModule.Packer
 
     public sealed class InstanceDataWriter : InstanceDataServicePovider
     {
-        public static InstanceDataWriter Instance = new InstanceDataWriter();
+        public static InstanceDataWriter Instance { get; } = new InstanceDataWriter();
 
-        private ByteWriter _byteWriter = new ByteWriter();
+        private readonly ByteWriter _byteWriter = new();
+
+        private bool isWriting;
+
+        private InstanceDataWriter()
+        {
+
+        }
 
 
-        bool isWriting;
+        public enum CompressionMode
+        {
+            High, medium, low, Lowless, Lossy, LZ4
+        }
 
         public async UniTask ProcessWrite()
         {
+            if (isWriting)
+                return;
 
-            if (Instance.isWriting) return;
-
-            Instance.isWriting = true;
+            isWriting = true;
 
             try
             {
-                while (waitingListForWriting.TryDequeue(out var ItemToPacker))
+                while (waitingListForWriting.TryDequeue(out var itemToPack))
                 {
-                    if (ItemToPacker is IInstanceDataPacker packer)
+                    if (itemToPack is IInstanceDataPacker packer)
                     {
                         try
                         {
-                            packer.WriteDataToPacker(Instance);
+                            packer.WriteDataToPacker(this);
 
-                            //Error Fix. Dont remove
-                            //Designed to fix a Issue with readonlyspans not being allowed in async methods. 
-                            StoreBufferDataToFile(Instance._byteWriter);
+                            // Error Fix. Don't remove.
+                            // Designed to fix an issue with ReadOnlySpan
+                            // not being allowed in async methods.
+                            StoreBufferDataToFile(_byteWriter);
 
-                            //some sotrage here 
-
-                            Instance._byteWriter.Reset();
+                            _byteWriter.Reset();
                         }
                         catch (Exception ex)
                         {
-                            Instance._byteWriter.Reset();
+                            _byteWriter.Reset();
+
                             Debug.LogError($"Serialization failed: {ex}");
                         }
                     }
@@ -57,104 +66,152 @@ namespace InventoryModule.Packer
             }
             finally
             {
-                Instance.isWriting = false;
+                isWriting = false;
             }
         }
 
         private void StoreBufferDataToFile(ByteWriter byteWriter)
         {
-           ReadOnlySpan<byte> Data = byteWriter.AsSpan();
+            ReadOnlySpan<byte> data = byteWriter.AsSpan();
+
+            // Storage implementation here
+        }
+
+
+        // =========================
+        // Primitive Types
+        // =========================
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(bool value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(byte value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(sbyte value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(short value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(ushort value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(int value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(uint value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(long value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(ulong value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(float value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(double value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(decimal value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(char value) =>
+            _byteWriter.Write(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(string value) =>
+            _byteWriter.Write(value);
+
+
+        // =========================
+        // Collections
+        // =========================
+
+        public void Write<T>(List<T> list)
+        {
+            if (list == null) throw new ArgumentNullException($"{typeof(T)} is Null");
+
+            if (typeof(ISerializable).IsAssignableFrom(typeof(T)))
+            {
+                foreach (var item in list)
+                {
+                    Write((ISerializable)item);
+                }
+                return;
+            }
+
+            _byteWriter.Write(list);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(bool value) => Instance._byteWriter.Write(value);
-
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(byte value) => Instance._byteWriter.Write(value);
-
-
+        public void Write(List<int> list) =>
+            _byteWriter.Write(list);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(sbyte value) => Instance._byteWriter.Write(value);
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(short value) => Instance._byteWriter.Write(value);
-
-
-
+        public void Write(List<string> list) =>
+            _byteWriter.Write(list);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(ushort value) => Instance._byteWriter.Write(value);
+        public void Write(List<float> list) =>
+            _byteWriter.Write(list);
 
 
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(int value) => Instance._byteWriter.Write(value);
-
-
+        // =========================
+        // Enum
+        // =========================
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(uint value) => Instance._byteWriter.Write(value);
+        public void Write<TEnum>(TEnum value)
+            where TEnum : struct, Enum =>
+            _byteWriter.Write(value);
 
 
+        // =========================
+        // Null
+        // =========================
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(long value) => Instance._byteWriter.Write(value);
+        
+        // =========================
+        // Custom-Types using Iserializable and IDesializable
+        // =========================
 
+        public void Write(ISerializable Object)
+        {
+            if (Object is null) return;
+            if(Object is not IDeserializable)
+            {
+                Debug.LogWarning($"{Object}, Needs to have a IDeserializable also or the System wont be able to read");
+                return;
+            }
 
+            Object.OnWrite(this);
+        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(ulong value) => Instance._byteWriter.Write(value);
+        // =========================
+        // Unity Objects
+        // =========================
 
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(float value) => Instance._byteWriter.Write(value);
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(double value) => Instance._byteWriter.Write(value);
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(decimal value) => Instance._byteWriter.Write(value);
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(char value) => Instance._byteWriter.Write(value);
-
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(string value) => Instance._byteWriter.Write(value);
-
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write<T>(IList<T> list) => Instance._byteWriter.Write(list);
-
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write<TEnum>(TEnum value) where TEnum : struct, System.Enum => Instance._byteWriter.Write(value);
-
-
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WriteNull() => Instance._byteWriter.WriteNull();
-
-        public void Write(UnityEngine.Object value)
+        public void Write(Sprite sprite)
         {
 
         }
 
-
-        [MethodImpl]
         public void Write(Transform transform)
         {
             Write(transform.position.x);
@@ -171,22 +228,25 @@ namespace InventoryModule.Packer
             Write(transform.localScale.z);
         }
 
-        public void Write(Vector2 Vector2)
+        public void Write(Vector2 value)
         {
-            Write(Vector2.x);
-            Write(Vector2.y);
+            Write(value.x);
+            Write(value.y);
         }
-        public void Write(Vector3 Vector3)
+
+        public void Write(Vector3 value)
         {
-            Write(Vector3.x);
-            Write(Vector3.y);
-            Write(Vector3.z);
+            Write(value.x);
+            Write(value.y);
+            Write(value.z);
         }
-        public void Write(Vector4 Vector4)
+
+        public void Write(Vector4 value)
         {
-            Write(Vector4.x);
-            Write(Vector4.y);
-            Write(Vector4.z);
+            Write(value.x);
+            Write(value.y);
+            Write(value.z);
+            Write(value.w);
         }
     }
 
@@ -199,8 +259,8 @@ namespace InventoryModule.Packer
     // this is just a Class that both read and write can use
     public class InstanceDataServicePovider
     {
-        protected static ConcurrentQueue<IInstanceable> waitingListForWriting = new ConcurrentQueue<IInstanceable>();
-        protected static ConcurrentQueue<IInstanceable> waitingListForReading = new ConcurrentQueue<IInstanceable>();
+        protected static ConcurrentQueue<IInstanceable> waitingListForWriting = new();
+        protected static ConcurrentQueue<IInstanceable> waitingListForReading = new();
 
         public void BeginWriting(IInstanceable instance)
         {

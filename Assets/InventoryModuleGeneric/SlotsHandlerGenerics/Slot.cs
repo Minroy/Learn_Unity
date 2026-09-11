@@ -1,6 +1,6 @@
 using System;
 
-namespace InventoryModule.Data
+namespace InventoryModule
 {
     /// <summary>
     /// A defualt Premade slot, Made my Icy. 

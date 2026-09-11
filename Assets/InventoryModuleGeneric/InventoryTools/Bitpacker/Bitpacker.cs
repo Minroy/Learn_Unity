@@ -3,7 +3,6 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace InventoryModule.Packer
 {
@@ -12,7 +11,7 @@ namespace InventoryModule.Packer
     /// <summary>
     /// uses Byte-Aligned Packing for Converting Data to bits
     /// </summary>
-    public class ByteWriter : IDisposable /* IAsyncDisposable*/
+    public class ByteWriter
     {
         private byte[] buffer;
 
@@ -21,12 +20,27 @@ namespace InventoryModule.Packer
         /// </summary>
         public int Position { get; private set; }
 
+        public const string dictionaryMarker = "Dick_Marker";
 
+        /// <summary>
+        /// The starting size of the internal buffer;
+        /// </summary>
+        /// <param name="capacity"> internal buffer capacity</param>
         public ByteWriter(int capacity = 256)
         {
             buffer = new byte[capacity];
             Position = 0;
         }
+
+        /// <summary>
+        /// Lazy-Auto setup
+        /// </summary>
+        public ByteWriter()
+        {
+            buffer = new byte[256];
+            Position = 0;
+        }
+
         // resets position to Zero. 
         public void Reset()
         {
@@ -133,17 +147,20 @@ namespace InventoryModule.Packer
         }
         public void Write(string value)
         {
-            if (string.IsNullOrEmpty(value))
+            if (value == null)
             {
-                Write(0); // Length prefix = 0
+                Write(-1);
                 return;
             }
 
             int byteCount = Encoding.UTF8.GetByteCount(value);
-            Write(byteCount); // 4-byte length prefix
+
+            Write(byteCount);
 
             EnsureCapacity(byteCount);
+
             Encoding.UTF8.GetBytes(value, 0, value.Length, buffer, Position);
+
             Position += byteCount;
         }
 
@@ -154,16 +171,12 @@ namespace InventoryModule.Packer
             Position += 2;
         }
 
+      
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WriteNull()
+        public void Write(Enum value)
         {
-            Write(false);
-        }
-
-        //Todo
-        public void Write<TEnum>(TEnum value) where TEnum : struct, Enum
-        {
-
+            Write((int)(object)value);
         }
 
 
@@ -234,32 +247,15 @@ namespace InventoryModule.Packer
             Array.Resize(ref buffer, 256);
             Position = 0;
         }
-        public void Dispose()
-        {
-
-        }
-
-        //public ValueTask DisposeAsync()
-        //{
-        //    throw new NotImplementedException();
-        //}
     }
 
     #endregion
 
     #region Bit Reader
 
-    public sealed class BitReader : IDisposable, IAsyncDisposable
+    public sealed class BitReader
     {
-        public void Dispose()
-        {
 
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            throw new NotImplementedException();
-        }
     }
     #endregion
 }
