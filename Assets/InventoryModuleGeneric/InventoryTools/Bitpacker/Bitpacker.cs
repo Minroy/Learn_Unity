@@ -1,5 +1,7 @@
+using NUnit.Framework;
 using System;
 using System.Buffers.Binary;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -172,12 +174,39 @@ namespace InventoryModule.Packer
             Position += 2;
         }
 
-      
 
+        /// <summary>
+        /// Writes an Enum value using unsafe casting for zero-overhead serialization
+        /// </summary>
+        /// <typeparam name="TEnum">The enum type to serialize</typeparam>
+        /// <param name="value">The enum value to write. Supported underlying types: sbyte, short, int, long, ulong</param>
+        /// <exception cref="InvalidOperationException">Thrown when the enum's underlying type is not supported</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(Enum value)
+        public void WriteEnum<TEnum>(TEnum value) where TEnum : Enum
         {
-            Write((int)(object)value);
+            var underlyingType = Enum.GetUnderlyingType(typeof(TEnum));
+
+            switch (underlyingType.Name)
+            {
+               
+                case nameof(SByte):
+                    Write(Unsafe.As<TEnum, sbyte>(ref value));
+                    break;
+                case nameof(Int16):
+                    Write(Unsafe.As<TEnum, short>(ref value));
+                    break;
+                case nameof(Int32):
+                    Write(Unsafe.As<TEnum, int>(ref value));
+                    break;
+                case nameof(Int64):
+                    Write(Unsafe.As<TEnum, long>(ref value));
+                    break;
+                case nameof(UInt64):
+                    Write(Unsafe.As<TEnum, ulong>(ref value));
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unsupported enum underlying type: {underlyingType}");
+            }
         }
 
 
@@ -185,7 +214,7 @@ namespace InventoryModule.Packer
         {
             if (list == null)
             {
-                Write((int)-1);
+                Write((sbyte)-1);
                 return;
             }
 
@@ -218,9 +247,26 @@ namespace InventoryModule.Packer
             Write(list.Count);
             for (int i = 0; i < list.Count; i++) Write(list[i]);
         }
+
+
+        public void Write(Array array)
+        {
+            if (array == null)
+            {
+                Write((sbyte)-1);
+                return;
+            }
+
+            Write(array.Length);
+
+            foreach (var item in array)
+            {
+                WriteItem(item);
+            }
+        }
+
         private void WriteItem<T>(T item)
         {
-            // Pattern matching directly on generic T (no boxing occurs!)
             switch (item)
             {
                 case bool v: Write(v); break;
@@ -237,6 +283,7 @@ namespace InventoryModule.Packer
                 case decimal v: Write(v); break;
                 case char v: Write(v); break;
                 case string v: Write(v); break;
+                case Enum v: WriteEnum(v); break;
                 default:
                     throw new NotSupportedException($"Type {typeof(T)} is not supported for serialization.");
             }
@@ -244,8 +291,7 @@ namespace InventoryModule.Packer
 
         public void ClearBufferData()
         {
-            buffer = Array.Empty<byte>();
-            Array.Resize(ref buffer, 256);
+            Array.Clear(buffer, 0, Position);
             Position = 0;
         }
     }

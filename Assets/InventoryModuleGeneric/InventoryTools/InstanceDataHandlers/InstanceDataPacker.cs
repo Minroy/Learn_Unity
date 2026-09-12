@@ -75,7 +75,7 @@ namespace InventoryModule.Packer
 
         public void SaveDataToRegistry(IInstanceable itemToPack)
         {
-            byte[] compressedData = LZ4Pickler.Pickle(_byteWriter.ToArray(), LZ4Level.L00_FAST);
+            byte[] compressedData = LZ4Pickler.Pickle(_byteWriter.AsSpan(), LZ4Level.L00_FAST);
             InstanceGlobalRegistry.Add(itemToPack, compressedData);
         }
     
@@ -189,24 +189,63 @@ namespace InventoryModule.Packer
             _byteWriter.Write(list);
 
 
+
+        public void Write(Array array) =>
+           _byteWriter.Write(array);
+
+
+        public void Write<T>(T[] Objects) where T : ISerializable
+        {
+            foreach (var obj in Objects)
+            {
+                if (obj is null) return;
+                if (obj is not IDeserializable)
+                {
+                    Debug.LogWarning($"{obj}, Needs to have a IDeserializable also or the System wont be able to read");
+                    return;
+                }
+
+                obj.OnWrite(this);  
+            }
+        }
+
+
+        public void Write(int[] ints)
+        {
+            _byteWriter.Write(ints.Length);
+            for (int i = 0; i < ints.Length; i++)
+            {
+                _byteWriter.Write(ints[i]);
+            }
+        }
+        public void Write(float[] floats)
+        {
+            _byteWriter.Write(floats.Length);
+            for (int i = 0; i < floats.Length; i++)
+            {
+                _byteWriter.Write(floats[i]);
+            }
+        }
+        public void Write(string[] strings)
+        {
+            _byteWriter.Write(strings.Length);
+            for (int i = 0; i < strings.Length; i++)
+            {
+                _byteWriter.Write(strings[i]);
+            }
+        }
+
         // =========================
         // Enum
         // =========================
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(Enum value) =>
-            _byteWriter.Write(value);
-
-
-        // =========================
-        // Custom-Types using Iserializable and IDesializable
-        // =========================
-
-        public void WriteType<T>(T Object) where T : ISerializable
+        public void Write(Enum value)
         {
-            
+            _byteWriter.WriteEnum(value);
         }
 
+       
         // =========================
         // Unity Objects
         // =========================
@@ -215,7 +254,7 @@ namespace InventoryModule.Packer
         {
 
         }
-
+          
         public void Write(Transform transform)
         {
             Write(transform.position.x);
