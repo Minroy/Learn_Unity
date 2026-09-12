@@ -4,6 +4,7 @@ using InventoryModule.IDSystem.Instance;
 using InventoryModule.Packer;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace InventoryModule
@@ -38,8 +39,6 @@ namespace InventoryModule
         [SerializeField, HideInInspector] private uint itemId = 0;
         [SerializeField] private int maxAmount;
         [SerializeField] private Sprite icon;
-        [SerializeField] private uint test;
-
         private ulong instanceID = 0;
         public uint ItemId => itemId == 0 ? 0 : itemId;
 
@@ -49,11 +48,13 @@ namespace InventoryModule
 
         public ulong InstanceId { get => instanceID; set => instanceID = value; }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReadDataFormPacker(InstanceDataReader reader)
         {
             DeserializeData(reader);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteDataToPacker(InstanceDataWriter writer)
         {
             SerializeData(writer);
@@ -79,7 +80,6 @@ namespace InventoryModule
         void IItem.SetID(uint id)
         {
             itemId = id;
-            test = id;
         }
     }
 }
