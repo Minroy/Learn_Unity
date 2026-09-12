@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace InventoryModule.Data
@@ -18,37 +20,40 @@ namespace InventoryModule.Data
 
         private struct InstanceData
         {
-            public IInstanceable CurrentInstance { get; set; }
-            public byte[] Data { get; set; }
+            public IInstanceable CurrentInstance;
+            public byte[] Data;
         }
 
+        private static ConcurrentDictionary<InstanceKey, InstanceData> InstanceRegistry = new();
 
-        private static Dictionary<InstanceKey, InstanceData> InstanceRegistry = new();
-
-        public static void Add(IInstanceable instanceItem, byte[] bytes)
+        public static void Add(IInstanceable instanceItem,byte[] bytes)
         {
-            if (instanceItem is not null)
+            if (instanceItem is null) return;
+
+            InstanceKey key = new(instanceItem.InstanceId, instanceItem.ItemId);
+            InstanceData data = new() { CurrentInstance = instanceItem, Data = bytes};
+
+            InstanceRegistry.TryAdd(key, data);
+        }
+
+        public static bool TryGet(IInstanceable instanceItem, out ReadOnlySpan<byte> bytes)
+        {
+            InstanceKey key = new(instanceItem.InstanceId, instanceItem.ItemId);
+
+            if (InstanceRegistry.TryGetValue(key, out var data))
             {
-                InstanceKey key = new(instanceItem.InstanceId, instanceItem.ItemId);
-
-                InstanceData data = new()
-                {
-                    CurrentInstance = instanceItem,
-                    Data = bytes
-                };
-                InstanceRegistry.Add(key, data);
+                bytes = data.Data.AsSpan();
+                return true;
             }
+
+            bytes = default;
+            return false;
         }
 
-        public static void Remove(IInstanceable instanceItem, byte[] bytes)
+        public static void Remove(IInstanceable instanceItem)
         {
-
+            InstanceKey key = new(instanceItem.InstanceId, instanceItem.ItemId);
+            InstanceRegistry.TryRemove(key, out _);
         }
-
-        //public static bool TryGetBytes(IInstanceable instance,out ReadOnlySpan<byte> bytes)
-        //{
-        //   return
-        //}
     }
 }
-

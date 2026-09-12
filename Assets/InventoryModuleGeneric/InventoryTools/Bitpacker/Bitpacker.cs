@@ -42,9 +42,10 @@ namespace InventoryModule.Packer
         }
 
         // resets position to Zero. 
-        public void Reset()
+        public bool Reset()
         {
             Position = 0;
+            return true;
         }
 
         public ReadOnlySpan<byte> AsSpan() => buffer.AsSpan(0, Position);
