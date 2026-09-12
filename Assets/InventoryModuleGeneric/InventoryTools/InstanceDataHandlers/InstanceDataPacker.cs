@@ -1,9 +1,11 @@
 using Cysharp.Threading.Tasks;
+using InventoryModule.Data;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using K4os.Compression.LZ4;
 
 
 namespace InventoryModule.Packer
@@ -16,6 +18,8 @@ namespace InventoryModule.Packer
 
         private readonly ByteWriter _byteWriter = new();
 
+        private CompressionMode CompressionMode = CompressionMode.LZ4_Min;
+
         private bool isWriting;
 
         private InstanceDataWriter()
@@ -24,9 +28,11 @@ namespace InventoryModule.Packer
         }
 
 
-        public enum CompressionMode
+        
+
+        public void CompressionType(CompressionMode mode)
         {
-            High, medium, low, Lowless, Lossy, LZ4
+            CompressionMode = mode;
         }
 
         public async UniTask ProcessWrite()
@@ -46,10 +52,7 @@ namespace InventoryModule.Packer
                         {
                             packer.WriteDataToPacker(this);
 
-                            // Error Fix. Don't remove.
-                            // Designed to fix an issue with ReadOnlySpan
-                            // not being allowed in async methods.
-                            StoreBufferDataToFile(_byteWriter);
+                            SaveDataToRegistry(itemToPack);
 
                             _byteWriter.Reset();
                         }
@@ -70,12 +73,12 @@ namespace InventoryModule.Packer
             }
         }
 
-        private void StoreBufferDataToFile(ByteWriter byteWriter)
+        public void SaveDataToRegistry(IInstanceable itemToPack)
         {
-            ReadOnlySpan<byte> data = byteWriter.AsSpan();
-
-            // Storage implementation here
+            byte[] compressedData = LZ4Pickler.Pickle(_byteWriter.ToArray(), LZ4Level.L00_FAST);
+            InstanceGlobalRegistry.Add(itemToPack, compressedData);
         }
+    
 
 
         // =========================
@@ -149,6 +152,8 @@ namespace InventoryModule.Packer
 
             if (typeof(ISerializable).IsAssignableFrom(typeof(T)))
             {
+                _byteWriter.Write(list.Count);
+
                 foreach (var item in list)
                 {
                     Write((ISerializable)item);
@@ -157,6 +162,18 @@ namespace InventoryModule.Packer
             }
 
             _byteWriter.Write(list);
+        }
+
+        public void Write<T>(T Object) where T : ISerializable
+        {
+            if (Object is null) return;
+            if (Object is not IDeserializable)
+            {
+                Debug.LogWarning($"{Object}, Needs to have a IDeserializable also or the System wont be able to read");
+                return;
+            }
+
+            Object.OnWrite(this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -177,30 +194,17 @@ namespace InventoryModule.Packer
         // =========================
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write<TEnum>(TEnum value)
-            where TEnum : struct, Enum =>
+        public void Write(Enum value) =>
             _byteWriter.Write(value);
 
 
         // =========================
-        // Null
-        // =========================
-
-        
-        // =========================
         // Custom-Types using Iserializable and IDesializable
         // =========================
 
-        public void Write(ISerializable Object)
+        public void WriteType<T>(T Object) where T : ISerializable
         {
-            if (Object is null) return;
-            if(Object is not IDeserializable)
-            {
-                Debug.LogWarning($"{Object}, Needs to have a IDeserializable also or the System wont be able to read");
-                return;
-            }
-
-            Object.OnWrite(this);
+            
         }
 
         // =========================
