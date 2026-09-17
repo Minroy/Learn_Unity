@@ -24,10 +24,11 @@ public class Arrows : InstanceItemScriptableObject
         writer.Write(gaggda);
         writer.Write(gaddgga);
         writer.Write(TestList);
+        writer.Write(new Waste());
     }
 }
 
-public struct Waste
+public enum Waste
 {
 
 }

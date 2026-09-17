@@ -242,7 +242,7 @@ namespace InventoryModule.Packer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(Enum value)
         {
-            _byteWriter.WriteEnum(value);
+            _byteWriter.Write(value);
         }
 
        
