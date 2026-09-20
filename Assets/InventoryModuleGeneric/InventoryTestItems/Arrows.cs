@@ -13,18 +13,15 @@ public class Arrows : InstanceItemScriptableObject
     int gaddgga = 1233;
 
     public List<PotionSO> TestList = new();
-    public override void DeserializeData(InstanceDataReader reader)
-    {
 
-    }
-    public override void SerializeData(InstanceDataWriter writer)
+    public override void DeserializeData(ByteReader reader)
     {
-        writer.Write(gagga);
-        writer.Write(gagdga);
-        writer.Write(gaggda);
-        writer.Write(gaddgga);
-        writer.Write(TestList);
-        writer.Write(new Waste());
+        throw new System.NotImplementedException();
+    }
+
+    public override void SerializeData(ByteWriter writer)
+    {
+        throw new System.NotImplementedException();
     }
 }
 

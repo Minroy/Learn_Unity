@@ -1,511 +1,393 @@
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace InventoryModule.Packer
 {
-    #region Bit Writer
+    // Interface any custom type implements to self-serialize.
+    public interface IEncoder
+    {
+        void Encode(ByteWriter writer);
+    }
+
+    public interface IDecoder
+    {
+        void Decode(ByteReader reader);
+    }
+
+    #region ByteWriter
 
     /// <summary>
-    /// uses Byte-Aligned Packing for Converting Data to bits
+    /// Byte-Aligned writing, with Zero-Allocations. 
     /// </summary>
-    public class ByteWriter
+    public sealed class ByteWriter : IDisposable
     {
-        private byte[] buffer;
+        private byte[] _buffer;
 
-        /// <summary>
-        /// Current write position in bytes.
-        /// </summary>
+        // Sentinel written for null strings so the reader
+        // can distinguish null from empty.
+        private const byte NULL_SENTINEL = 0xFF;
+
         public int Position { get; private set; }
 
-        private const byte NULL_MARKER = 0xFF;
-        private const byte DICK_MARKER = 0xAA;
-
-        /// <summary>
-        /// The starting size of the internal buffer;
-        /// </summary>
-        /// <param name="capacity"> internal buffer capacity</param>
         public ByteWriter(int capacity = 256)
         {
-            buffer = new byte[capacity];
-            Position = 0;
+            // 1. Rent the initial buffer instead of 'new byte[]'
+            _buffer = ArrayPool<byte>.Shared.Rent(capacity);
         }
 
-        /// <summary>
-        /// Lazy-Auto setup
-        /// </summary>
-        public ByteWriter()
-        {
-            buffer = new byte[256];
-            Position = 0;
-        }
+        // ── Buffer management ──────────────────────────────────────────
 
-        // resets position to Zero. 
-        public bool Reset()
-        {
-            Position = 0;
-            return true;
-        }
+        public void Reset() => Position = 0;
 
-        public ReadOnlySpan<byte> AsSpan() => buffer.AsSpan(0, Position);
+        public ReadOnlySpan<byte> AsSpan() => _buffer.AsSpan(0, Position);
 
         public byte[] ToArray()
         {
-            byte[] result = new byte[Position];
-            Array.Copy(buffer, 0, result, 0, Position);
+            var result = new byte[Position];
+            _buffer.AsSpan(0, Position).CopyTo(result);
             return result;
         }
 
-        // checks if the Current buffer has enough buffer bytes left to Write too.
-        //if not then it just resizes the array
+
         public void EnsureCapacity(int bytesToWrite)
         {
-            if (Position + bytesToWrite > buffer.Length)
+            if (Position + bytesToWrite > _buffer.Length)
             {
-                int newCapacity = Math.Max(buffer.Length * 2, Position + bytesToWrite);
-                Array.Resize(ref buffer, newCapacity);
+                int newCapacity = Math.Max(_buffer.Length * 2, Position + bytesToWrite);
+
+                byte[] newBuffer = ArrayPool<byte>.Shared.Rent(newCapacity);
+
+
+                _buffer.AsSpan(0, Position).CopyTo(newBuffer);
+
+                // 4. Return the OLD buffer back to the pool to prevent GC allocation
+                ArrayPool<byte>.Shared.Return(_buffer);
+
+                // 5. Swap the reference
+                _buffer = newBuffer;
             }
         }
+        public void Dispose()
+        {
+            if (_buffer != null)
+            {
+                ArrayPool<byte>.Shared.Return(_buffer);
+                _buffer = null;
+            }
+        }
+        // ── Primitives ─────────────────────────────────────────────────
+
         public void Write(bool value)
         {
             EnsureCapacity(1);
-            buffer[Position++] = (byte)(value ? 1 : 0);
+            _buffer[Position++] = (byte)(value ? 1 : 0);
         }
 
-        #region INTS_BITPACKING
         public void Write(byte value)
         {
             EnsureCapacity(1);
-            buffer[Position++] = value;
+            _buffer[Position++] = value;
         }
+
         public void Write(sbyte value)
         {
             EnsureCapacity(1);
-            buffer[Position++] = (byte)value;
+            _buffer[Position++] = (byte)value;
         }
 
         public void Write(short value)
         {
             EnsureCapacity(2);
-            BinaryPrimitives.WriteInt16LittleEndian(buffer.AsSpan(Position), value);
+            BinaryPrimitives.WriteInt16LittleEndian(_buffer.AsSpan(Position), value);
             Position += 2;
         }
+
         public void Write(ushort value)
         {
             EnsureCapacity(2);
-            BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(Position), value);
+            BinaryPrimitives.WriteUInt16LittleEndian(_buffer.AsSpan(Position), value);
             Position += 2;
         }
 
         public void Write(int value)
         {
             EnsureCapacity(4);
-            BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(Position), value);
+            BinaryPrimitives.WriteInt32LittleEndian(_buffer.AsSpan(Position), value);
             Position += 4;
         }
+
         public void Write(uint value)
         {
             EnsureCapacity(4);
-            BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(Position), value);
+            BinaryPrimitives.WriteUInt32LittleEndian(_buffer.AsSpan(Position), value);
             Position += 4;
         }
 
         public void Write(long value)
         {
             EnsureCapacity(8);
-            BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(Position), value);
+            BinaryPrimitives.WriteInt64LittleEndian(_buffer.AsSpan(Position), value);
             Position += 8;
         }
 
         public void Write(ulong value)
         {
             EnsureCapacity(8);
-            BinaryPrimitives.WriteUInt64LittleEndian(buffer.AsSpan(Position), value);
+            BinaryPrimitives.WriteUInt64LittleEndian(_buffer.AsSpan(Position), value);
             Position += 8;
         }
-        #endregion
 
-        public void Write(float value)
-        {
-            int IntValue = Unsafe.As<float, int>(ref value);
-            Write(IntValue);
-        }
-
-        public void Write(double value)
-        {
-            long LongValue = Unsafe.As<double, long>(ref value);
-            Write(LongValue);
-        }
+        public void Write(float value) => Write(Unsafe.As<float, int>(ref value));
+        public void Write(double value) => Write(Unsafe.As<double, long>(ref value));
 
         public void Write(decimal value)
         {
-            Span<int> bits = stackalloc int[4];
-            var bitArray = decimal.GetBits(value);
-            for (int i = 0; i < 4; i++)
-            {
-                bits[i] = bitArray[i];
-            }
-
-            Write(bits[0]);
-            Write(bits[1]);
-            Write(bits[2]);
-            Write(bits[3]);
-        }
-        public void Write(string value)
-        {
-            if (value == null)
-            {
-                Write(-1);
-                return;
-            }
-
-            int byteCount = Encoding.UTF8.GetByteCount(value);
-
-            Write(byteCount);
-
-            EnsureCapacity(byteCount);
-
-            Encoding.UTF8.GetBytes(value, 0, value.Length, buffer, Position);
-
-            Position += byteCount;
+            EnsureCapacity(16);
+            ReadOnlySpan<byte> bytes = MemoryMarshal.CreateReadOnlySpan(
+                ref Unsafe.As<decimal, byte>(ref value), 16);
+            bytes.CopyTo(_buffer.AsSpan(Position));
+            Position += 16;
         }
 
         public void Write(char value)
         {
             EnsureCapacity(2);
-            BinaryPrimitives.WriteInt16LittleEndian(buffer.AsSpan(Position), (short)value);
+            BinaryPrimitives.WriteInt16LittleEndian(_buffer.AsSpan(Position), (short)value);
             Position += 2;
         }
 
+        // ── Strings ────────────────────────────────────────────────────
+
+        public void Write(string value)
+        {
+            if (value == null) { Write(NULL_SENTINEL); return; }
+
+            int byteCount = Encoding.UTF8.GetByteCount(value);
+            Write(byteCount);
+            EnsureCapacity(byteCount);
+            Encoding.UTF8.GetBytes(value, 0, value.Length, _buffer, Position);
+            Position += byteCount;
+        }
+
+        public void Write(IEncoder encoder)
+        {
+            encoder.Encode(this);
+        }
 
         /// <summary>
-        /// Writes an Enum value using unsafe casting for zero-overhead serialization, supports all types. 
+        /// Can only write, unmanged-Types. 
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(Enum value)
+        public void Write<T>(T value) where T : unmanaged
         {
-            var underlyingType = Enum.GetUnderlyingType(value.GetType());
+            int size = Unsafe.SizeOf<T>();
+            EnsureCapacity(size);
 
-            switch (underlyingType.Name)
-            {
-                case nameof(Byte):
-                    Write(Unsafe.As<Enum, byte>(ref value));
-                    break;
-                case nameof(SByte):
-                    Write(Unsafe.As<Enum, sbyte>(ref value));
-                    break;
-                case nameof(UInt16):
-                    Write(Unsafe.As<Enum, ushort>(ref value));
-                    break;
-                case nameof(Int16):
-                    Write(Unsafe.As<Enum, short>(ref value));
-                    break;
-                case nameof(UInt32):
-                    Write(Unsafe.As<Enum, uint>(ref value));
-                    break;
-                case nameof(Int32):
-                    Write(Unsafe.As<Enum, int>(ref value));
-                    break;
-                case nameof(UInt64):
-                    Write(Unsafe.As<Enum, ulong>(ref value));
-                    break;
-                case nameof(Int64):
-                    Write(Unsafe.As<Enum, long>(ref value));
-                    break;
-            }
+            // Writes the raw memory of the enum directly into the buffer array
+            Unsafe.WriteUnaligned(ref _buffer[Position], value);
+            Position += size;
         }
 
-
-
-        public void Write<T>(IList<T> list)
+        public void Write<T>(List<T> list) where T : unmanaged
         {
-            if (list == null)
-            {
-                Write((sbyte)-1);
-                return;
-            }
-
             Write(list.Count);
+            if (list.Count <= 0) return;
 
             for (int i = 0; i < list.Count; i++)
             {
-                // Direct method dispatch for primitives
-                WriteItem(list[i]);
-            }
-        }
-
-        public void Write(IList<int> list)
-        {
-            if (list == null) { Write(-1); return; }
-            Write(list.Count);
-
-            for (int i = 0; i < list.Count; i++)
                 Write(list[i]);
+            }
         }
 
-        public void Write(IList<float> list)
+        public void Write(List<IEncoder> list)
         {
-            if (list == null) { Write(-1); return; }
             Write(list.Count);
+            if (list.Count <= 0) return;
 
             for (int i = 0; i < list.Count; i++)
+            {
                 Write(list[i]);
-        }
-
-        public void Write(IList<string> list)
-        {
-            if (list == null) { Write(-1); return; }
-            Write(list.Count);
-
-            for (int i = 0; i < list.Count; i++)
-                Write(list[i]);
-        }
-
-
-        public void Write(Array array)
-        {
-            if (array == null)
-            {
-                Write((sbyte)-1);
-                return;
-            }
-
-            Write(array.Length);
-
-            foreach (var item in array)
-            {
-                WriteItem(item);
             }
         }
 
-        private void WriteItem<T>(T item)
+        public void Write<T>(T[] items) where T : unmanaged
         {
-            switch (item)
+            var size = items.Length;
+            Write(size);
+            for (int i = 0; i < items.Length; i++)
             {
-                case bool v: Write(v); break;
-                case byte v: Write(v); break;
-                case sbyte v: Write(v); break;
-                case short v: Write(v); break;
-                case ushort v: Write(v); break;
-                case int v: Write(v); break;
-                case uint v: Write(v); break;
-                case long v: Write(v); break;
-                case ulong v: Write(v); break;
-                case float v: Write(v); break;
-                case double v: Write(v); break;
-                case decimal v: Write(v); break;
-                case char v: Write(v); break;
-                case string v: Write(v); break;
-                case Enum v: Write(v); break;
-                default:
-                    throw new NotSupportedException($"Type {typeof(T)} is not supported for serialization.");
+                Write(items[i]);
+            }
+        }
+        public void Write(IEncoder[] items)
+        {
+            var size = items.Length;
+            Write(size);
+            for (int i = 0; i < items.Length; i++)
+            {
+                Write(items[i]);
             }
         }
 
-        public void ClearBufferData()
+        /// <summary>
+        /// Can only write, unmanged-Types. 
+        /// </summary>
+        public void Write<T>(ReadOnlySpan<T> items) where T : unmanaged
         {
-            Array.Clear(buffer, 0, Position);
-            Position = 0;
+            Write(items.Length);
+            var bytes = MemoryMarshal.AsBytes(items);
+            EnsureCapacity(bytes.Length);
+            bytes.CopyTo(_buffer.AsSpan(Position));
+            Position += bytes.Length;
+        }
+
+        public void Write(ReadOnlySpan<IEncoder> items)
+        {
+            Write(items.Length);
+            for (int i = 0; i > items.Length; i++)
+            {
+
+            }
         }
     }
-
-    #endregion
-
-    #region Bit Reader
-
-    public sealed class ByteReader
-    {
-        private readonly byte[] _readBuffer;
-        private int _position;
-
-        public int Position => _position;
-
-        public ByteReader(byte[] buffer)
-        {
-            _readBuffer = buffer;
-            _position = 0;
-        }
-
-        // ── Primitives ────────────────────────────────────────────────
-
-        public void Read(out bool value)
-            => value = _readBuffer[_position++] != 0;
-
-        public void Read(out byte value)
-            => value = _readBuffer[_position++];
-
-        public void Read(out sbyte value)
-            => value = unchecked((sbyte)_readBuffer[_position++]);
-
-        public void Read(out short value)
-        {
-            value = BinaryPrimitives.ReadInt16LittleEndian(_readBuffer.AsSpan(_position));
-            _position += 2;
-        }
-
-        public void Read(out ushort value)
-        {
-            value = BinaryPrimitives.ReadUInt16LittleEndian(_readBuffer.AsSpan(_position));
-            _position += 2;
-        }
-
-        public void Read(out int value)
-        {
-            value = BinaryPrimitives.ReadInt32LittleEndian(_readBuffer.AsSpan(_position));
-            _position += 4;
-        }
-
-        public void Read(out uint value)
-        {
-            value = BinaryPrimitives.ReadUInt32LittleEndian(_readBuffer.AsSpan(_position));
-            _position += 4;
-        }
-
-        public void Read(out long value)
-        {
-            value = BinaryPrimitives.ReadInt64LittleEndian(_readBuffer.AsSpan(_position));
-            _position += 8;
-        }
-
-        public void Read(out ulong value)
-        {
-            value = BinaryPrimitives.ReadUInt64LittleEndian(_readBuffer.AsSpan(_position));
-            _position += 8;
-        }
-
-        public void Read(out float value)
-        {
-            Read(out int bits);
-            value = Unsafe.As<int, float>(ref bits);
-        }
-
-        public void Read(out double value)
-        {
-            Read(out long bits);
-            value = Unsafe.As<long, double>(ref bits);
-        }
-
-        public void Read(out decimal value)
-        {
-            Span<int> bits = stackalloc int[4];
-            Read(out bits[0]);
-            Read(out bits[1]);
-            Read(out bits[2]);
-            Read(out bits[3]);
-            value = new decimal(bits.ToArray());
-        }
-
-        public void Read(out char value)
-        {
-            Read(out short bits);
-            value = (char)bits;
-        }
-
-        // ── String ───────────────────────────────────────────────────
-
-        private const int StackStringThreshold = 256;
-
-        public void Read(out string value)
-        {
-            Read(out int byteCount);
-
-            if (byteCount == -1)
-            {
-                value = null;
-                return;
-            }
-
-            // Small strings: decode from stack — zero heap alloc for the byte buffer
-            if (byteCount <= StackStringThreshold)
-            {
-                Span<byte> slice = stackalloc byte[byteCount];
-                _readBuffer.AsSpan(_position, byteCount).CopyTo(slice);
-                value = Encoding.UTF8.GetString(slice);
-            }
-            else
-            {
-                // Large strings: decode directly from the buffer span — still no temp array
-                value = Encoding.UTF8.GetString(_readBuffer, _position, byteCount);
-            }
-
-            _position += byteCount;
-        }
-
-        // ── Enums ────────────────────────────────────────────────────
-
-        public void Read(Enum enumType, out Enum value)
-        {
-            var underlyingType = Enum.GetUnderlyingType(enumType.GetType());
-            value = null;
-
-            switch (underlyingType.Name)
-            {
-                case nameof(Byte):
-                    Read(out byte b);
-                    value = Unsafe.As<byte, Enum>(ref b);
-                    break;
-                case nameof(SByte):
-                    Read(out sbyte sb);
-                    value = Unsafe.As<sbyte, Enum>(ref sb);
-                    break;
-                case nameof(UInt16):
-                    Read(out ushort us);
-                    value = Unsafe.As<ushort, Enum>(ref us);
-                    break;
-                case nameof(Int16):
-                    Read(out short s);
-                    value = Unsafe.As<short, Enum>(ref s);
-                    break;
-                case nameof(UInt32):
-                    Read(out uint ui);
-                    value = Unsafe.As<uint, Enum>(ref ui);
-                    break;
-                case nameof(Int32):
-                    Read(out int i);
-                    value = Unsafe.As<int, Enum>(ref i);
-                    break;
-                case nameof(UInt64):
-                    Read(out ulong ul);
-                    value = Unsafe.As<ulong, Enum>(ref ul);
-                    break;
-                case nameof(Int64):
-                    Read(out long l);
-                    value = Unsafe.As<long, Enum>(ref l);
-                    break;
-            }
-        }
-
-
-        // ── Lists ────────────────────────────────────────────────────
-
-        public void Read(out List<int> value)
-        {
-            Read(out int count);
-            if (count == -1) { value = null; return; }
-
-            value = new List<int>(count);
-            for (int i = 0; i < count; i++) { Read(out int item); value.Add(item); }
-        }
-
-        public void Read(out List<float> value)
-        {
-            Read(out int count);
-            if (count == -1) { value = null; return; }
-
-            value = new List<float>(count);
-            for (int i = 0; i < count; i++) { Read(out float item); value.Add(item); }
-        }
-
-        public void Read(out List<string> value)
-        {
-            Read(out int count);
-            if (count == -1) { value = null; return; }
-
-            value = new List<string>(count);
-            for (int i = 0; i < count; i++) { Read(out string item); value.Add(item); }
-        }
-    }
-    #endregion
 }
+
+    #endregion
+
+#region ByteReader
+
+public sealed class ByteReader : IDisposable
+{
+    private byte[] _buffer;
+    private int _position;
+    private byte NULL_SENTINEL = 0xFF;
+
+    public ByteReader(byte[] buffer)
+    {
+        _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
+        _position = 0;
+    }
+
+    public ByteReader(ReadOnlySpan<byte> buffer)
+    {
+        _buffer = buffer.ToArray();
+    }
+
+    public void Dispose()
+    {
+        if (_buffer != null)
+        {
+            ArrayPool<byte>.Shared.Return(_buffer, false);
+            _buffer = null;
+        }
+    }
+
+
+// ── Buffer management ──────────────────────────────────────────
+
+[MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void CheckBounds(int bytesNeeded)
+    {
+        if (_position + bytesNeeded > _buffer.Length)
+            throw new InvalidOperationException(
+                $"ByteReader out of bounds: need {bytesNeeded} byte(s) at position " +
+                $"{_position}, buffer length {_buffer.Length}.");
+    }
+
+    // ── Primitives ─────────────────────────────────────────────────
+
+    public void Read(out bool value) { CheckBounds(1); value = _buffer[_position++] != 0; }
+    public void Read(out byte value) { CheckBounds(1); value = _buffer[_position++]; }
+    public void Read(out sbyte value) { CheckBounds(1); value = unchecked((sbyte)_buffer[_position++]); }
+
+    public void Read(out short value)
+    {
+        CheckBounds(2);
+        value = BinaryPrimitives.ReadInt16LittleEndian(_buffer.AsSpan(_position));
+        _position += 2;
+    }
+
+    public void Read(out ushort value)
+    {
+        CheckBounds(2);
+        value = BinaryPrimitives.ReadUInt16LittleEndian(_buffer.AsSpan(_position));
+        _position += 2;
+    }
+
+    public void Read(out int value)
+    {
+        CheckBounds(4);
+        value = BinaryPrimitives.ReadInt32LittleEndian(_buffer.AsSpan(_position));
+        _position += 4;
+    }
+
+    public void Read(out uint value)
+    {
+        CheckBounds(4);
+        value = BinaryPrimitives.ReadUInt32LittleEndian(_buffer.AsSpan(_position));
+        _position += 4;
+    }
+
+    public void Read(out long value)
+    {
+        CheckBounds(8);
+        value = BinaryPrimitives.ReadInt64LittleEndian(_buffer.AsSpan(_position));
+        _position += 8;
+    }
+
+    public void Read(out ulong value)
+    {
+        CheckBounds(8);
+        value = BinaryPrimitives.ReadUInt64LittleEndian(_buffer.AsSpan(_position));
+        _position += 8;
+    }
+
+    public void Read(out float value)
+    {
+        CheckBounds(4);
+        Read(out int bits);
+        value = BitConverter.Int32BitsToSingle(bits);
+    }
+
+    public void Read(out double value)
+    {
+        CheckBounds(8);
+        Read(out long bits);
+        value = BitConverter.Int64BitsToDouble(bits);
+    }
+
+    public void Read(out decimal value)
+    {
+        CheckBounds(16);
+        value = default;
+        ref byte src = ref _buffer[_position];
+        value = Unsafe.ReadUnaligned<decimal>(ref src);
+        _position += 16;
+    }
+
+    public void Read(out char value)
+    {
+        Read(out short bits);
+        value = (char)bits;
+    }
+
+    // ── Strings ────────────────────────────────────────────────────
+
+    public void Read(out string value)
+    {
+        Read(out int byteCount);
+
+        if (byteCount == NULL_SENTINEL) { value = null; return; }
+        if (byteCount == 0) { value = string.Empty; return; }
+
+        CheckBounds(byteCount);
+        value = Encoding.UTF8.GetString(_buffer, _position, byteCount);
+        _position += byteCount;
+    }
+}
+
+#endregion

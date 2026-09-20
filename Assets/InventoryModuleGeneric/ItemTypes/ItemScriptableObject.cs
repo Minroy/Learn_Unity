@@ -48,20 +48,10 @@ namespace InventoryModule
 
         public ulong InstanceId { get => instanceID; set => instanceID = value; }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ReadDataFormPacker(InstanceDataReader reader)
-        {
-            DeserializeData(reader);
-        }
+        
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WriteDataToPacker(InstanceDataWriter writer)
-        {
-            SerializeData(writer);
-        }
-
-        public abstract void DeserializeData(InstanceDataReader reader);
-        public abstract void SerializeData(InstanceDataWriter writer);
+        public abstract void DeserializeData(ByteReader reader);
+        public abstract void SerializeData(ByteWriter writer);
        
 
         private void Awake()
@@ -80,6 +70,17 @@ namespace InventoryModule
         void IItem.SetID(uint id)
         {
             itemId = id;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void WriteDataToPacker(ByteWriter writer)
+        {
+            SerializeData(writer);
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ReadDataFormPacker(ByteReader reader)
+        {
+            DeserializeData(reader);
         }
     }
 }

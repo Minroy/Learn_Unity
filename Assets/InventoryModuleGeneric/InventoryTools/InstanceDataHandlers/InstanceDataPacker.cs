@@ -50,7 +50,7 @@ namespace InventoryModule.Packer
                     {
                         try
                         {
-                            packer.WriteDataToPacker(this);
+                            packer.WriteDataToPacker(_byteWriter);
 
                             SaveDataToRegistry(itemToPack);
 
@@ -150,62 +150,45 @@ namespace InventoryModule.Packer
         {
             if (list == null) throw new ArgumentNullException($"{typeof(T)} is Null");
 
-            if (typeof(ISerializable).IsAssignableFrom(typeof(T)))
+            if (typeof(IEncoder).IsAssignableFrom(typeof(T)))
             {
                 _byteWriter.Write(list.Count);
 
                 foreach (var item in list)
                 {
-                    Write((ISerializable)item);
+                    Write((IEncoder)item);
                 }
                 return;
             }
 
-            _byteWriter.Write(list);
+            
         }
 
-        public void Write<T>(T Object) where T : ISerializable
+        public void Write<T>(T Object) where T : IEncoder
         {
             if (Object is null) return;
-            if (Object is not IDeserializable)
+            if (Object is not IDecoder)
             {
-                Debug.LogWarning($"{Object}, Needs to have a IDeserializable also or the System wont be able to read");
+                Debug.LogWarning($"{Object}, Needs to have a Idecoder also or the System wont be able to read");
                 return;
             }
 
-            Object.OnWrite(this);
+            Object.Encode(_byteWriter);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(List<int> list) =>
-            _byteWriter.Write(list);
+   
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(List<string> list) =>
-            _byteWriter.Write(list);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(List<float> list) =>
-            _byteWriter.Write(list);
-
-
-
-        public void Write(Array array) =>
-           _byteWriter.Write(array);
-
-
-        public void Write<T>(T[] Objects) where T : ISerializable
+        public void Write<T>(T[] Objects) where T : IEncoder
         {
             foreach (var obj in Objects)
             {
                 if (obj is null) return;
-                if (obj is not IDeserializable)
+                if (obj is not IDecoder)
                 {
-                    Debug.LogWarning($"{obj}, Needs to have a IDeserializable also or the System wont be able to read");
+                    Debug.LogWarning($"{obj}, Needs to have a Idecoder also or the System wont be able to read");
                     return;
                 }
-
-                obj.OnWrite(this);  
+                obj.Encode(_byteWriter);
             }
         }
 
@@ -242,7 +225,7 @@ namespace InventoryModule.Packer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(Enum value)
         {
-            _byteWriter.Write(value);
+            //_byteWriter.WriteListUnmanged(value);
         }
 
        
