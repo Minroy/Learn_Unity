@@ -92,13 +92,13 @@ namespace InventoryModule
         /// What Data this Instance will have unique. Order of writing Matters.
         /// </summary>
         /// <param name="writer"> what Data that needs to be written</param>
-        public void WriteDataToPacker(InstanceDataWriter writer);
+        public void WriteDataToPacker(ByteWriter writer);
 
         /// <summary>
         /// What Data this Instance will read back, During or after creation. 
         /// </summary>
         /// <param name="reader">this reads what data is given</param>
-        public void ReadDataFormPacker(InstanceDataReader reader);
+        public void ReadDataFormPacker(ByteReader reader);
     }
 
     public interface IInstanceDataPackerAuto // todo
@@ -107,16 +107,3 @@ namespace InventoryModule
     }
 }
 
-namespace InventoryModule.Packer
-{
-    public interface ISerializable
-    {
-        public void OnWrite(InstanceDataWriter writer);
-    }
-
-    public interface IDeserializable
-    {
-        public void OnRead(InstanceDataReader reader);
-    }
-
-}

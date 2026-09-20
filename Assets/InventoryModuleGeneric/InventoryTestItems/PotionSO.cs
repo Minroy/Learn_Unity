@@ -6,7 +6,7 @@ using UnityEngine;
 
 //exmaple of an item
 [CreateAssetMenu(fileName = "PotionSO", menuName = "Scriptable Objects/PotionSO")]
-public class PotionSO : ItemScriptableObject, IStackable , ISerializable , IDeserializable
+public class PotionSO : ItemScriptableObject, IStackable 
 {
     int Example1 = 123;
     ulong Exp = 3829019457832002;

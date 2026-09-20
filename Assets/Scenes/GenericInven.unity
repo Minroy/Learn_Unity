@@ -225,9 +225,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 954a04547c88ad542b2b66203b4c9cd7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  testPotion1: {fileID: 11400000, guid: 74532208de0f9b1419cd8ac071d68c0f, type: 2}
-  testPotion2: {fileID: 0}
-  testPotion3: {fileID: 0}
 --- !u!114 &243741956
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -235,7 +232,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 243741951}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
   m_Name: 
