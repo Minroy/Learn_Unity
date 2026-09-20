@@ -1,3 +1,4 @@
+using NUnit.Framework;
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
@@ -32,18 +33,43 @@ namespace InventoryModule.Packer
         // can distinguish null from empty.
         private const byte NULL_SENTINEL = 0xFF;
 
+        //A marker for a dictionary
+        private const byte DICK_SENTINAL = 0xdD;
+
         public int Position { get; private set; }
 
         public ByteWriter(int capacity = 256)
         {
             // 1. Rent the initial buffer instead of 'new byte[]'
             _buffer = ArrayPool<byte>.Shared.Rent(capacity);
+
+            //ofset set for ChecksumData
+            Position += 2;
         }
 
         // ── Buffer management ──────────────────────────────────────────
 
         public void Reset() => Position = 0;
 
+        /// <summary>
+        /// Releases the current rented buffer back to ArrayPool and resets capacity back to the default size.
+        /// Use this after large write operations to reclaim system RAM.
+        /// </summary>
+        public void ClearInternalBuffer(int defaultCapacity = 256)
+        {
+            if (_buffer != null)
+            {
+                // 1. Return the huge 2GB array back to the pool so memory is reclaimed
+                ArrayPool<byte>.Shared.Return(_buffer);
+            }
+
+            // 2. Rent a fresh, small default array
+            _buffer = ArrayPool<byte>.Shared.Rent(defaultCapacity);
+            Position = 0;
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlySpan<byte> AsSpan() => _buffer.AsSpan(0, Position);
 
         public byte[] ToArray()
@@ -53,7 +79,7 @@ namespace InventoryModule.Packer
             return result;
         }
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnsureCapacity(int bytesToWrite)
         {
             if (Position + bytesToWrite > _buffer.Length)
@@ -64,11 +90,7 @@ namespace InventoryModule.Packer
 
 
                 _buffer.AsSpan(0, Position).CopyTo(newBuffer);
-
-                // 4. Return the OLD buffer back to the pool to prevent GC allocation
                 ArrayPool<byte>.Shared.Return(_buffer);
-
-                // 5. Swap the reference
                 _buffer = newBuffer;
             }
         }
@@ -94,72 +116,45 @@ namespace InventoryModule.Packer
             _buffer[Position++] = value;
         }
 
-        public void Write(sbyte value)
-        {
-            EnsureCapacity(1);
-            _buffer[Position++] = (byte)value;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(sbyte value) => Write<sbyte>(value);
 
-        public void Write(short value)
-        {
-            EnsureCapacity(2);
-            BinaryPrimitives.WriteInt16LittleEndian(_buffer.AsSpan(Position), value);
-            Position += 2;
-        }
 
-        public void Write(ushort value)
-        {
-            EnsureCapacity(2);
-            BinaryPrimitives.WriteUInt16LittleEndian(_buffer.AsSpan(Position), value);
-            Position += 2;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(short value) => Write<short>(value);
 
-        public void Write(int value)
-        {
-            EnsureCapacity(4);
-            BinaryPrimitives.WriteInt32LittleEndian(_buffer.AsSpan(Position), value);
-            Position += 4;
-        }
 
-        public void Write(uint value)
-        {
-            EnsureCapacity(4);
-            BinaryPrimitives.WriteUInt32LittleEndian(_buffer.AsSpan(Position), value);
-            Position += 4;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(ushort value) => Write<ushort>(value);
 
-        public void Write(long value)
-        {
-            EnsureCapacity(8);
-            BinaryPrimitives.WriteInt64LittleEndian(_buffer.AsSpan(Position), value);
-            Position += 8;
-        }
 
-        public void Write(ulong value)
-        {
-            EnsureCapacity(8);
-            BinaryPrimitives.WriteUInt64LittleEndian(_buffer.AsSpan(Position), value);
-            Position += 8;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(int value) => Write<int>(value);
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(uint value) => Write<uint>(value);
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(long value) => Write<long>(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(ulong value) => Write<ulong>(value);
+       
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(float value) => Write(Unsafe.As<float, int>(ref value));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(double value) => Write(Unsafe.As<double, long>(ref value));
 
-        public void Write(decimal value)
-        {
-            EnsureCapacity(16);
-            ReadOnlySpan<byte> bytes = MemoryMarshal.CreateReadOnlySpan(
-                ref Unsafe.As<decimal, byte>(ref value), 16);
-            bytes.CopyTo(_buffer.AsSpan(Position));
-            Position += 16;
-        }
 
-        public void Write(char value)
-        {
-            EnsureCapacity(2);
-            BinaryPrimitives.WriteInt16LittleEndian(_buffer.AsSpan(Position), (short)value);
-            Position += 2;
-        }
+        public void Write(decimal value) => Write<decimal>(value);
+        
+
+        public void Write(char value) => Write<char>(value);
+       
 
         // ── Strings ────────────────────────────────────────────────────
 
@@ -174,15 +169,20 @@ namespace InventoryModule.Packer
             Position += byteCount;
         }
 
-        public void Write(IEncoder encoder)
+        /// <summary>
+        /// Writes custom encoder types with zero boxing. (ignore bool, it doesnt do anything)
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write<T>(T encoder, bool _ = false) where T : IEncoder
         {
-            encoder.Encode(this);
+            encoder?.Encode(this);
         }
+
 
         /// <summary>
         /// Can only write, unmanged-Types. 
         /// </summary>
-        public void Write<T>(T value) where T : unmanaged
+        private void Write<T>(T value) where T : unmanaged
         {
             int size = Unsafe.SizeOf<T>();
             EnsureCapacity(size);
@@ -194,16 +194,25 @@ namespace InventoryModule.Packer
 
         public void Write<T>(List<T> list) where T : unmanaged
         {
-            Write(list.Count);
-            if (list.Count <= 0) return;
+            if (list == null) { Write(0); return; }
+            int count = list.Count;
+            Write(count);
+            if (count == 0) return;
 
-            for (int i = 0; i < list.Count; i++)
+            int elementSize = Unsafe.SizeOf<T>();
+            int totalBytes = count * elementSize;
+            EnsureCapacity(totalBytes);
+
+            // Fast-path write directly into pooled buffer without per-element capacity checks
+            for (int i = 0; i < count; i++)
             {
-                Write(list[i]);
+                T item = list[i];
+                Unsafe.WriteUnaligned(ref _buffer[Position], item);
+                Position += elementSize;
             }
         }
 
-        public void Write(List<IEncoder> list)
+        public void Write<T>(List<T> list , bool _ = default) where T : IEncoder
         {
             Write(list.Count);
             if (list.Count <= 0) return;
@@ -216,17 +225,24 @@ namespace InventoryModule.Packer
 
         public void Write<T>(T[] items) where T : unmanaged
         {
-            var size = items.Length;
-            Write(size);
-            for (int i = 0; i < items.Length; i++)
-            {
-                Write(items[i]);
-            }
+            if (items == null) { Write(0); return; }
+
+            int count = items.Length;
+            Write(count);
+            if (count == 0) return;
+
+            int bytesToCopy = count * Unsafe.SizeOf<T>();
+            EnsureCapacity(bytesToCopy);
+
+            // Fast memory copy on .NET 4.8 / Unity Mono
+            Buffer.BlockCopy(items, 0, _buffer, Position, bytesToCopy);
+            Position += bytesToCopy;
         }
-        public void Write(IEncoder[] items)
+        public void Write<T>(T[] items, bool _= default) where T : IEncoder
         {
-            var size = items.Length;
-            Write(size);
+            Write(items.Length);
+            if (items.Length <= 0) return;
+
             for (int i = 0; i < items.Length; i++)
             {
                 Write(items[i]);
@@ -245,14 +261,22 @@ namespace InventoryModule.Packer
             Position += bytes.Length;
         }
 
-        public void Write(ReadOnlySpan<IEncoder> items)
+        public void Write<T>(ReadOnlySpan<T> items, bool  _ = default) where T : IEncoder
         {
             Write(items.Length);
-            for (int i = 0; i > items.Length; i++)
+            for (int i = 0; i < items.Length; i++)
             {
-
+                Write(items[i]);
             }
         }
+
+        //----------------End of Stream Helpers------------
+
+        private static ushort ComputeCRC32(ReadOnlySpan<byte> data)
+        {
+            return 
+        }
+
     }
 }
 
@@ -260,6 +284,7 @@ namespace InventoryModule.Packer
 
 #region ByteReader
 
+//WIP: Still tryna figure stuff out. 
 public sealed class ByteReader : IDisposable
 {
     private byte[] _buffer;
@@ -279,17 +304,13 @@ public sealed class ByteReader : IDisposable
 
     public void Dispose()
     {
-        if (_buffer != null)
-        {
-            ArrayPool<byte>.Shared.Return(_buffer, false);
-            _buffer = null;
-        }
+
     }
 
 
-// ── Buffer management ──────────────────────────────────────────
+    // ── Buffer management ──────────────────────────────────────────
 
-[MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void CheckBounds(int bytesNeeded)
     {
         if (_position + bytesNeeded > _buffer.Length)

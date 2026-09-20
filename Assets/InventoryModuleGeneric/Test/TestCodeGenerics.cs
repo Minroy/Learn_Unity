@@ -45,6 +45,7 @@ public class BytePackerBenchmark : MonoBehaviour
         {
             byte[] data = Serialize(source);
             DeserializeAndValidate(data, source);
+            
         }
 
         // ------------------------------------------------------------
@@ -128,6 +129,7 @@ public class BytePackerBenchmark : MonoBehaviour
         Debug.Log($"Read speed      : {readMBps:F2} MB/s");
 
         Debug.Log("========================================");
+        
     }
 
     // ================================================================
@@ -142,7 +144,7 @@ public class BytePackerBenchmark : MonoBehaviour
 
             for (int i = 0; i < values.Length; i++)
             {
-                writer.Write<long>(values[i]);
+                writer.Write(values[i]);
             }
 
             return writer.ToArray();
