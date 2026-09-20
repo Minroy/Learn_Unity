@@ -1,4 +1,3 @@
-using NUnit.Framework;
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
@@ -36,6 +35,14 @@ namespace InventoryModule.Packer
         //A marker for a dictionary
         private const byte DICK_SENTINAL = 0xdD;
 
+        private const int MB = 1024 * 1024;
+
+        private const int THRESHOLD_200_MB = 200 * MB;
+        private const int THRESHOLD_1_GB = 1024 * MB;
+
+        private const int GROW_200_MB = 200 * MB;
+        private const int GROW_500_MB = 500 * MB;
+
         public int Position { get; private set; }
 
         public ByteWriter(int capacity = 256)
@@ -44,12 +51,12 @@ namespace InventoryModule.Packer
             _buffer = ArrayPool<byte>.Shared.Rent(capacity);
 
             //ofset set for ChecksumData
-            Position += 2;
+            Position += 4;
         }
 
         // ── Buffer management ──────────────────────────────────────────
 
-        public void Reset() => Position = 0;
+        public void Reset() => Position = 4; // byte 0,1,2,3 is reserved for checksum.
 
         /// <summary>
         /// Releases the current rented buffer back to ArrayPool and resets capacity back to the default size.
@@ -65,15 +72,37 @@ namespace InventoryModule.Packer
 
             // 2. Rent a fresh, small default array
             _buffer = ArrayPool<byte>.Shared.Rent(defaultCapacity);
-            Position = 0;
+            Position = 4;
         }
 
 
+        /// <summary>Raw bytes, no checksum. Starts at byte 4 (skips checksum header).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlySpan<byte> AsSpan() => _buffer.AsSpan(0, Position);
+        public ReadOnlySpan<byte> AsSpan() => _buffer.AsSpan(4, Position - 4);
 
+
+
+        /// <summary>Full packet with checksum stamped into bytes 0-3.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ReadOnlySpan<byte> AsSpanWithChecksum()
+        {
+            StampChecksum();
+            return _buffer.AsSpan(0, Position);
+        }
+
+        /// <summary>Raw bytes, no checksum. Starts at byte 4 (skips checksum header).</summary>
         public byte[] ToArray()
         {
+            int length = Position - 4;
+            var result = new byte[length];
+            _buffer.AsSpan(4, length).CopyTo(result);
+            return result;
+        }
+
+        /// <summary>Full packet with checksum stamped into bytes 0-3.</summary>
+        public byte[] ToArrayWithChecksum()
+        {
+            StampChecksum();
             var result = new byte[Position];
             _buffer.AsSpan(0, Position).CopyTo(result);
             return result;
@@ -82,17 +111,54 @@ namespace InventoryModule.Packer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnsureCapacity(int bytesToWrite)
         {
-            if (Position + bytesToWrite > _buffer.Length)
+            if (bytesToWrite < 0)
+                throw new ArgumentOutOfRangeException(nameof(bytesToWrite));
+
+            // Already enough room.
+            if (bytesToWrite <= _buffer.Length - Position)
+                return;
+
+            // Avoid integer overflow.
+            if (Position > int.MaxValue - bytesToWrite)
+                throw new OverflowException("ByteWriter buffer size exceeded Int32.MaxValue.");
+
+            int requiredCapacity = Position + bytesToWrite;
+            long currentCapacity = _buffer.Length;
+            long targetCapacity;
+
+            if (currentCapacity < THRESHOLD_200_MB)
             {
-                int newCapacity = Math.Max(_buffer.Length * 2, Position + bytesToWrite);
-
-                byte[] newBuffer = ArrayPool<byte>.Shared.Rent(newCapacity);
-
-
-                _buffer.AsSpan(0, Position).CopyTo(newBuffer);
-                ArrayPool<byte>.Shared.Return(_buffer);
-                _buffer = newBuffer;
+                // Below 200 MB: exponential growth.
+                targetCapacity = currentCapacity * 2L;
             }
+            else if (currentCapacity < THRESHOLD_1_GB)
+            {
+                // 200 MB -> 400 MB -> 600 MB -> 800 MB -> 1 GB...
+                targetCapacity = currentCapacity + GROW_200_MB;
+            }
+            else
+            {
+                // 1 GB -> 1.5 GB -> 2 GB -> 2.5 GB...
+                targetCapacity = currentCapacity + GROW_500_MB;
+            }
+
+            // If a single write needs more than our normal growth step,
+            // grow directly to at least the required size.
+            targetCapacity = Math.Max(targetCapacity, requiredCapacity);
+
+            if (targetCapacity > int.MaxValue)
+                throw new OutOfMemoryException(
+                    $"Requested buffer capacity {targetCapacity:N0} exceeds Int32.MaxValue.");
+
+            int newCapacity = (int)targetCapacity;
+
+            byte[] newBuffer = ArrayPool<byte>.Shared.Rent(newCapacity);
+
+            _buffer.AsSpan(0, Position).CopyTo(newBuffer);
+
+            ArrayPool<byte>.Shared.Return(_buffer);
+
+            _buffer = newBuffer;
         }
         public void Dispose()
         {
@@ -141,7 +207,7 @@ namespace InventoryModule.Packer
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(ulong value) => Write<ulong>(value);
-       
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(float value) => Write(Unsafe.As<float, int>(ref value));
@@ -151,10 +217,10 @@ namespace InventoryModule.Packer
 
 
         public void Write(decimal value) => Write<decimal>(value);
-        
+
 
         public void Write(char value) => Write<char>(value);
-       
+
 
         // ── Strings ────────────────────────────────────────────────────
 
@@ -212,7 +278,7 @@ namespace InventoryModule.Packer
             }
         }
 
-        public void Write<T>(List<T> list , bool _ = default) where T : IEncoder
+        public void Write<T>(List<T> list, bool _ = default) where T : IEncoder
         {
             Write(list.Count);
             if (list.Count <= 0) return;
@@ -238,7 +304,7 @@ namespace InventoryModule.Packer
             Buffer.BlockCopy(items, 0, _buffer, Position, bytesToCopy);
             Position += bytesToCopy;
         }
-        public void Write<T>(T[] items, bool _= default) where T : IEncoder
+        public void Write<T>(T[] items, bool _ = default) where T : IEncoder
         {
             Write(items.Length);
             if (items.Length <= 0) return;
@@ -261,7 +327,7 @@ namespace InventoryModule.Packer
             Position += bytes.Length;
         }
 
-        public void Write<T>(ReadOnlySpan<T> items, bool  _ = default) where T : IEncoder
+        public void Write<T>(ReadOnlySpan<T> items, bool _ = default) where T : IEncoder
         {
             Write(items.Length);
             for (int i = 0; i < items.Length; i++)
@@ -272,9 +338,86 @@ namespace InventoryModule.Packer
 
         //----------------End of Stream Helpers------------
 
-        private static ushort ComputeCRC32(ReadOnlySpan<byte> data)
+        // ── Checksum ───────────────────────────────────────────────────
+
+        private const ulong P1 = 11400714785074694791UL;
+        private const ulong P2 = 14029467366897019727UL;
+        private const ulong P3 = 1609587929392839161UL;
+        private const ulong P4 = 9650029242287828579UL;
+        private const ulong P5 = 2870177450012600261UL;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ulong Rotl(ulong x, int r) => (x << r) | (x >> (64 - r));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ulong Round(ulong acc, ulong input)
+            => Rotl(acc + input * P2, 31) * P1;
+
+        /// <summary>Checksum of a payload (everything after the 4 checksum bytes).</summary>
+        public static unsafe uint ComputeChecksum(ReadOnlySpan<byte> data)
         {
-            return 
+            unchecked
+            {
+                fixed (byte* start = data)
+                {
+                    byte* p = start;
+                    byte* end = start + data.Length;
+                    ulong h;
+
+                    if (data.Length >= 32)
+                    {
+                        ulong a1 = P1 + P2, a2 = P2, a3 = 0, a4 = 0UL - P1;
+                        byte* limit = end - 32;
+                        do
+                        {
+                            a1 = Round(a1, Unsafe.ReadUnaligned<ulong>(p));
+                            a2 = Round(a2, Unsafe.ReadUnaligned<ulong>(p + 8));
+                            a3 = Round(a3, Unsafe.ReadUnaligned<ulong>(p + 16));
+                            a4 = Round(a4, Unsafe.ReadUnaligned<ulong>(p + 24));
+                            p += 32;
+                        } while (p <= limit);
+
+                        h = Rotl(a1, 1) + Rotl(a2, 7) + Rotl(a3, 12) + Rotl(a4, 18);
+                    }
+                    else h = P5;
+
+                    h += (ulong)data.Length;
+
+                    while (p + 8 <= end)
+                    {
+                        h ^= Round(0, Unsafe.ReadUnaligned<ulong>(p));
+                        h = Rotl(h, 27) * P1 + P4;
+                        p += 8;
+                    }
+                    while (p < end)
+                    {
+                        h ^= *p * P5;
+                        h = Rotl(h, 11) * P1;
+                        p++;
+                    }
+
+                    // Avalanche
+                    h ^= h >> 33; h *= P2;
+                    h ^= h >> 29; h *= P3;
+                    h ^= h >> 32;
+
+                    return (uint)h;
+                }
+            }
+        }
+
+        /// <summary>For the reader side: checks a full packet (first 4 bytes = checksum).</summary>
+        public static bool Verify(ReadOnlySpan<byte> packet)
+        {
+            if (packet.Length < 4) return false;
+            uint stored = Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(packet));
+            return stored == ComputeChecksum(packet.Slice(4));
+        }
+
+        private void StampChecksum()
+        {
+            uint c = ComputeChecksum(_buffer.AsSpan(4, Position - 4));
+            Unsafe.WriteUnaligned(ref _buffer[0], c);
         }
 
     }
