@@ -22,7 +22,7 @@ namespace InventoryModule.Packer
     #region ByteWriter
 
     /// <summary>
-    /// Byte-Aligned writing, with Zero-Allocations. 
+    /// Byte-Aligned writing, Close to as Zero-Allocating as it can get. 
     /// </summary>
     public sealed class ByteWriter : IDisposable
     {
@@ -51,7 +51,7 @@ namespace InventoryModule.Packer
             _buffer = ArrayPool<byte>.Shared.Rent(capacity);
 
             //ofset set for ChecksumData
-            Position += 4;
+            Position += 0;
         }
 
         // ── Buffer management ──────────────────────────────────────────
@@ -72,37 +72,15 @@ namespace InventoryModule.Packer
 
             // 2. Rent a fresh, small default array
             _buffer = ArrayPool<byte>.Shared.Rent(defaultCapacity);
-            Position = 4;
+            Position = 0;
         }
 
 
-        /// <summary>Raw bytes, no checksum. Starts at byte 4 (skips checksum header).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlySpan<byte> AsSpan() => _buffer.AsSpan(4, Position - 4);
+        public ReadOnlySpan<byte> AsSpan() => _buffer.AsSpan(0, Position);
 
-
-
-        /// <summary>Full packet with checksum stamped into bytes 0-3.</summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlySpan<byte> AsSpanWithChecksum()
-        {
-            StampChecksum();
-            return _buffer.AsSpan(0, Position);
-        }
-
-        /// <summary>Raw bytes, no checksum. Starts at byte 4 (skips checksum header).</summary>
         public byte[] ToArray()
         {
-            int length = Position - 4;
-            var result = new byte[length];
-            _buffer.AsSpan(4, length).CopyTo(result);
-            return result;
-        }
-
-        /// <summary>Full packet with checksum stamped into bytes 0-3.</summary>
-        public byte[] ToArrayWithChecksum()
-        {
-            StampChecksum();
             var result = new byte[Position];
             _buffer.AsSpan(0, Position).CopyTo(result);
             return result;
@@ -215,10 +193,10 @@ namespace InventoryModule.Packer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(double value) => Write(Unsafe.As<double, long>(ref value));
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(decimal value) => Write<decimal>(value);
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(char value) => Write<char>(value);
 
 
@@ -226,13 +204,27 @@ namespace InventoryModule.Packer
 
         public void Write(string value)
         {
-            if (value == null) { Write(NULL_SENTINEL); return; }
+            if (value == null)
+            {
+                Write(NULL_SENTINEL);
+                return;
+            }
 
-            int byteCount = Encoding.UTF8.GetByteCount(value);
-            Write(byteCount);
-            EnsureCapacity(byteCount);
-            Encoding.UTF8.GetBytes(value, 0, value.Length, _buffer, Position);
-            Position += byteCount;
+            Write((byte)0x00); // not null
+
+            int charCount = value.Length;
+            Write(charCount);
+
+            if (charCount == 0)
+                return;
+
+            ReadOnlySpan<byte> bytes =
+                MemoryMarshal.AsBytes(value.AsSpan());
+
+            EnsureCapacity(bytes.Length);
+
+            bytes.CopyTo(_buffer.AsSpan(Position));
+            Position += bytes.Length;
         }
 
         /// <summary>
@@ -336,222 +328,206 @@ namespace InventoryModule.Packer
             }
         }
 
-        //----------------End of Stream Helpers------------
-
-        // ── Checksum ───────────────────────────────────────────────────
-
-        private const ulong P1 = 11400714785074694791UL;
-        private const ulong P2 = 14029467366897019727UL;
-        private const ulong P3 = 1609587929392839161UL;
-        private const ulong P4 = 9650029242287828579UL;
-        private const ulong P5 = 2870177450012600261UL;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ulong Rotl(ulong x, int r) => (x << r) | (x >> (64 - r));
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ulong Round(ulong acc, ulong input)
-            => Rotl(acc + input * P2, 31) * P1;
-
-        /// <summary>Checksum of a payload (everything after the 4 checksum bytes).</summary>
-        public static unsafe uint ComputeChecksum(ReadOnlySpan<byte> data)
-        {
-            unchecked
-            {
-                fixed (byte* start = data)
-                {
-                    byte* p = start;
-                    byte* end = start + data.Length;
-                    ulong h;
-
-                    if (data.Length >= 32)
-                    {
-                        ulong a1 = P1 + P2, a2 = P2, a3 = 0, a4 = 0UL - P1;
-                        byte* limit = end - 32;
-                        do
-                        {
-                            a1 = Round(a1, Unsafe.ReadUnaligned<ulong>(p));
-                            a2 = Round(a2, Unsafe.ReadUnaligned<ulong>(p + 8));
-                            a3 = Round(a3, Unsafe.ReadUnaligned<ulong>(p + 16));
-                            a4 = Round(a4, Unsafe.ReadUnaligned<ulong>(p + 24));
-                            p += 32;
-                        } while (p <= limit);
-
-                        h = Rotl(a1, 1) + Rotl(a2, 7) + Rotl(a3, 12) + Rotl(a4, 18);
-                    }
-                    else h = P5;
-
-                    h += (ulong)data.Length;
-
-                    while (p + 8 <= end)
-                    {
-                        h ^= Round(0, Unsafe.ReadUnaligned<ulong>(p));
-                        h = Rotl(h, 27) * P1 + P4;
-                        p += 8;
-                    }
-                    while (p < end)
-                    {
-                        h ^= *p * P5;
-                        h = Rotl(h, 11) * P1;
-                        p++;
-                    }
-
-                    // Avalanche
-                    h ^= h >> 33; h *= P2;
-                    h ^= h >> 29; h *= P3;
-                    h ^= h >> 32;
-
-                    return (uint)h;
-                }
-            }
-        }
-
-        /// <summary>For the reader side: checks a full packet (first 4 bytes = checksum).</summary>
-        public static bool Verify(ReadOnlySpan<byte> packet)
-        {
-            if (packet.Length < 4) return false;
-            uint stored = Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(packet));
-            return stored == ComputeChecksum(packet.Slice(4));
-        }
-
-        private void StampChecksum()
-        {
-            uint c = ComputeChecksum(_buffer.AsSpan(4, Position - 4));
-            Unsafe.WriteUnaligned(ref _buffer[0], c);
-        }
 
     }
 }
+
 
     #endregion
 
 #region ByteReader
 
 //WIP: Still tryna figure stuff out. 
-public sealed class ByteReader : IDisposable
+namespace InventoryModule.Packer
 {
-    private byte[] _buffer;
-    private int _position;
-    private byte NULL_SENTINEL = 0xFF;
-
-    public ByteReader(byte[] buffer)
+    public ref struct ByteReader
     {
-        _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
-        _position = 0;
-    }
+        private ReadOnlySpan<byte> _buffer;
+        private int _position;
 
-    public ByteReader(ReadOnlySpan<byte> buffer)
-    {
-        _buffer = buffer.ToArray();
-    }
+        private const byte NULL_SENTINEL = 0xFF;
 
-    public void Dispose()
-    {
+        public ByteReader(ReadOnlySpan<byte> buffer)
+        {
+            _buffer = buffer;
+            _position = 0;
+        }
 
-    }
+        public int Position => _position;
+        public int Length => _buffer.Length;
+        public int Remaining => _buffer.Length - _position;
 
+        public ReadOnlySpan<byte> AsSpan() => _buffer;
 
-    // ── Buffer management ──────────────────────────────────────────
+        public ReadOnlySpan<byte> UnreadSpan =>
+            _buffer.Slice(_position);
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void CheckBounds(int bytesNeeded)
-    {
-        if (_position + bytesNeeded > _buffer.Length)
-            throw new InvalidOperationException(
-                $"ByteReader out of bounds: need {bytesNeeded} byte(s) at position " +
-                $"{_position}, buffer length {_buffer.Length}.");
-    }
+        // ── Buffer management ──────────────────────────────────────
 
-    // ── Primitives ─────────────────────────────────────────────────
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CheckBounds(int bytesNeeded)
+        {
+            if (bytesNeeded < 0 ||
+                _position > _buffer.Length - bytesNeeded)
+            {
+                throw new InvalidOperationException(
+                    $"ByteReader out of bounds: need {bytesNeeded} byte(s) " +
+                    $"at position {_position}, " +
+                    $"buffer length {_buffer.Length}.");
+            }
+        }
 
-    public void Read(out bool value) { CheckBounds(1); value = _buffer[_position++] != 0; }
-    public void Read(out byte value) { CheckBounds(1); value = _buffer[_position++]; }
-    public void Read(out sbyte value) { CheckBounds(1); value = unchecked((sbyte)_buffer[_position++]); }
+        // ── Primitives ─────────────────────────────────────────────
 
-    public void Read(out short value)
-    {
-        CheckBounds(2);
-        value = BinaryPrimitives.ReadInt16LittleEndian(_buffer.AsSpan(_position));
-        _position += 2;
-    }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out bool value)
+        {
+            CheckBounds(1);
+            value = _buffer[_position++] != 0;
+        }
 
-    public void Read(out ushort value)
-    {
-        CheckBounds(2);
-        value = BinaryPrimitives.ReadUInt16LittleEndian(_buffer.AsSpan(_position));
-        _position += 2;
-    }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out byte value)
+        {
+            CheckBounds(1);
+            value = _buffer[_position++];
+        }
 
-    public void Read(out int value)
-    {
-        CheckBounds(4);
-        value = BinaryPrimitives.ReadInt32LittleEndian(_buffer.AsSpan(_position));
-        _position += 4;
-    }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out sbyte value)
+        {
+            CheckBounds(1);
+            value = unchecked((sbyte)_buffer[_position++]);
+        }
 
-    public void Read(out uint value)
-    {
-        CheckBounds(4);
-        value = BinaryPrimitives.ReadUInt32LittleEndian(_buffer.AsSpan(_position));
-        _position += 4;
-    }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out short value)
+        {
+            CheckBounds(2);
+            value = BinaryPrimitives.ReadInt16LittleEndian(
+                _buffer.Slice(_position, 2));
 
-    public void Read(out long value)
-    {
-        CheckBounds(8);
-        value = BinaryPrimitives.ReadInt64LittleEndian(_buffer.AsSpan(_position));
-        _position += 8;
-    }
+            _position += 2;
+        }
 
-    public void Read(out ulong value)
-    {
-        CheckBounds(8);
-        value = BinaryPrimitives.ReadUInt64LittleEndian(_buffer.AsSpan(_position));
-        _position += 8;
-    }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out ushort value)
+        {
+            CheckBounds(2);
+            value = BinaryPrimitives.ReadUInt16LittleEndian(
+                _buffer.Slice(_position, 2));
 
-    public void Read(out float value)
-    {
-        CheckBounds(4);
-        Read(out int bits);
-        value = BitConverter.Int32BitsToSingle(bits);
-    }
+            _position += 2;
+        }
 
-    public void Read(out double value)
-    {
-        CheckBounds(8);
-        Read(out long bits);
-        value = BitConverter.Int64BitsToDouble(bits);
-    }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out int value)
+        {
+            CheckBounds(4);
+            value = BinaryPrimitives.ReadInt32LittleEndian(
+                _buffer.Slice(_position, 4));
 
-    public void Read(out decimal value)
-    {
-        CheckBounds(16);
-        value = default;
-        ref byte src = ref _buffer[_position];
-        value = Unsafe.ReadUnaligned<decimal>(ref src);
-        _position += 16;
-    }
+            _position += 4;
+        }
 
-    public void Read(out char value)
-    {
-        Read(out short bits);
-        value = (char)bits;
-    }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out uint value)
+        {
+            CheckBounds(4);
+            value = BinaryPrimitives.ReadUInt32LittleEndian(
+                _buffer.Slice(_position, 4));
 
-    // ── Strings ────────────────────────────────────────────────────
+            _position += 4;
+        }
 
-    public void Read(out string value)
-    {
-        Read(out int byteCount);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out long value)
+        {
+            CheckBounds(8);
+            value = BinaryPrimitives.ReadInt64LittleEndian(
+                _buffer.Slice(_position, 8));
 
-        if (byteCount == NULL_SENTINEL) { value = null; return; }
-        if (byteCount == 0) { value = string.Empty; return; }
+            _position += 8;
+        }
 
-        CheckBounds(byteCount);
-        value = Encoding.UTF8.GetString(_buffer, _position, byteCount);
-        _position += byteCount;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out ulong value)
+        {
+            CheckBounds(8);
+            value = BinaryPrimitives.ReadUInt64LittleEndian(
+                _buffer.Slice(_position, 8));
+
+            _position += 8;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out float value)
+        {
+            Read(out int bits);
+            value = BitConverter.Int32BitsToSingle(bits);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out double value)
+        {
+            Read(out long bits);
+            value = BitConverter.Int64BitsToDouble(bits);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out decimal value)
+        {
+            CheckBounds(16);
+
+            ref readonly byte src =
+                ref _buffer[_position];
+
+            value = Unsafe.ReadUnaligned<decimal>(
+                ref Unsafe.AsRef(in src));
+
+            _position += 16;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read(out char value)
+        {
+            Read(out short bits);
+            value = (char)bits;
+        }
+
+        // ── UTF-16 String ──────────────────────────────────────────
+
+        public void Read(out string value)
+        {
+            Read(out byte marker);
+
+            if (marker == NULL_SENTINEL)
+            {
+                value = null;
+                return;
+            }
+
+            Read(out int charCount);
+
+            if (charCount < 0)
+                throw new InvalidOperationException(
+                    $"Invalid string character count: {charCount}.");
+
+            if (charCount == 0)
+            {
+                value = string.Empty;
+                return;
+            }
+
+            int byteCount = checked(charCount * sizeof(char));
+
+            CheckBounds(byteCount);
+
+            value = MemoryMarshal
+                .Cast<byte, char>(_buffer.Slice(_position, byteCount)).ToString();
+
+            _position += byteCount;
+        }
     }
 }
-
 #endregion

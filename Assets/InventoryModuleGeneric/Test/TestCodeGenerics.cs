@@ -1,12 +1,12 @@
-
 using System;
+
 using UnityEngine;
 using InventoryModule.Packer;
 
-public class BytePackerBenchmark : MonoBehaviour
+public class BytePackerStringBenchmark : MonoBehaviour
 {
-    private const int ELEMENT_COUNT = 100_000_000;
-    private const int ITERATIONS = 10;
+    private const int ELEMENT_COUNT = 1_000_000;
+    private const int ITERATIONS = 3;
     private const int WARMUP = 3;
 
     private void Start()
@@ -17,18 +17,18 @@ public class BytePackerBenchmark : MonoBehaviour
     private void RunBenchmark()
     {
         Debug.Log("========================================");
-        Debug.Log(" ByteWriter / ByteReader Benchmark");
+        Debug.Log(" ByteWriter / ByteReader STRING Benchmark");
         Debug.Log("========================================");
 
         // ------------------------------------------------------------
         // Prepare deterministic source data
         // ------------------------------------------------------------
 
-        long[] source = new long[ELEMENT_COUNT];
+        string[] source = new string[ELEMENT_COUNT];
 
         for (int i = 0; i < source.Length; i++)
         {
-            source[i] = GenerateValue(i);
+            source[i] = GenerateString(i);
         }
 
         Debug.Log($"Elements      : {ELEMENT_COUNT:N0}");
@@ -43,9 +43,10 @@ public class BytePackerBenchmark : MonoBehaviour
 
         for (int i = 0; i < WARMUP; i++)
         {
-            byte[] data = Serialize(source);
-            DeserializeAndValidate(data, source);
-            
+            using (var writer = Serialize(source))
+            {
+                DeserializeAndValidate(writer.AsSpan(), source);
+            }
         }
 
         // ------------------------------------------------------------
@@ -53,202 +54,250 @@ public class BytePackerBenchmark : MonoBehaviour
         // ------------------------------------------------------------
 
         long totalWriteTicks = 0;
+        long totalWriteAllocations = 0;
         int serializedSize = 0;
-        Debug.Log("Starting benchmark...");  // Add this line
+
+        Debug.Log("Starting benchmark...");
+
         var sw = new System.Diagnostics.Stopwatch();
 
         for (int iteration = 0; iteration < ITERATIONS; iteration++)
         {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            long allocatedBefore =
+                GC.GetAllocatedBytesForCurrentThread();
+
             sw.Restart();
 
-            byte[] data = Serialize(source);
+            using (var writer = Serialize(source))
+            {
+                sw.Stop();
 
-            sw.Stop();
+                totalWriteTicks += sw.ElapsedTicks;
 
-            totalWriteTicks += sw.ElapsedTicks;
-            serializedSize = data.Length;
+                serializedSize = writer.Position;
+            }
+
+            long allocatedAfter =
+                GC.GetAllocatedBytesForCurrentThread();
+
+            totalWriteAllocations +=
+                allocatedAfter - allocatedBefore;
         }
 
         double writeMilliseconds =
             TicksToMilliseconds(totalWriteTicks) / ITERATIONS;
 
-        // ------------------------------------------------------------
-        // Create one final buffer for READ benchmark
-        // ------------------------------------------------------------
-
-        byte[] benchmarkData = Serialize(source);
+        double writeAllocatedBytes =
+            totalWriteAllocations / (double)ITERATIONS;
 
         // ------------------------------------------------------------
-        // READ BENCHMARK
+        // Create one writer buffer for READ benchmark
         // ------------------------------------------------------------
 
-        long totalReadTicks = 0;
-
-        for (int iteration = 0; iteration < ITERATIONS; iteration++)
+        using (var benchmarkWriter = Serialize(source))
         {
-            sw.Restart();
+            ReadOnlySpan<byte> benchmarkData =
+                benchmarkWriter.AsSpan();
 
-            DeserializeAndValidate(benchmarkData, source);
+            serializedSize = benchmarkData.Length;
 
-            sw.Stop();
+            // --------------------------------------------------------
+            // READ BENCHMARK
+            // --------------------------------------------------------
 
-            totalReadTicks += sw.ElapsedTicks;
+            long totalReadTicks = 0;
+            long totalReadAllocations = 0;
+
+            for (int iteration = 0; iteration < ITERATIONS; iteration++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                long allocatedBefore =
+                    GC.GetAllocatedBytesForCurrentThread();
+
+                sw.Restart();
+
+                DeserializeAndValidate(
+                    benchmarkData,
+                    source);
+
+                sw.Stop();
+
+                totalReadTicks += sw.ElapsedTicks;
+
+                long allocatedAfter =
+                    GC.GetAllocatedBytesForCurrentThread();
+
+                totalReadAllocations +=
+                    allocatedAfter - allocatedBefore;
+            }
+
+            double readMilliseconds =
+                TicksToMilliseconds(totalReadTicks) / ITERATIONS;
+
+            double readAllocatedBytes =
+                totalReadAllocations / (double)ITERATIONS;
+
+            // --------------------------------------------------------
+            // Results
+            // --------------------------------------------------------
+
+            double megabytes =
+                serializedSize / (1024.0 * 1024.0);
+
+            double writeMBps =
+                megabytes / (writeMilliseconds / 1000.0);
+
+            double readMBps =
+                megabytes / (readMilliseconds / 1000.0);
+
+            Debug.Log("");
+            Debug.Log("========================================");
+            Debug.Log(" RESULTS");
+            Debug.Log("========================================");
+
+            Debug.Log($"Serialized size : {serializedSize:N0} bytes");
+            Debug.Log($"                 {megabytes:F2} MB");
+
+            Debug.Log("");
+
+            Debug.Log($"Write time      : {writeMilliseconds:F4} ms");
+            Debug.Log($"Write speed     : {writeMBps:F2} MB/s");
+            Debug.Log(
+                $"Write allocated : {FormatBytes(writeAllocatedBytes)} / run");
+
+            Debug.Log("");
+
+            Debug.Log($"Read time       : {readMilliseconds:F4} ms");
+            Debug.Log($"Read speed      : {readMBps:F2} MB/s");
+            Debug.Log(
+                $"Read allocated  : {FormatBytes(readAllocatedBytes)} / run");
+
+            Debug.Log("========================================");
         }
-
-        double readMilliseconds =
-            TicksToMilliseconds(totalReadTicks) / ITERATIONS;
-
-        // ------------------------------------------------------------
-        // Results
-        // ------------------------------------------------------------
-
-        double megabytes = serializedSize / (1024.0 * 1024.0);
-
-        double writeMBps =
-            megabytes / (writeMilliseconds / 1000.0);
-
-        double readMBps =
-            megabytes / (readMilliseconds / 1000.0);
-
-        Debug.Log("");
-        Debug.Log("========================================");
-        Debug.Log(" RESULTS");
-        Debug.Log("========================================");
-
-        Debug.Log($"Serialized size : {serializedSize:N0} bytes");
-        Debug.Log($"                 {megabytes:F2} MB");
-
-        Debug.Log("");
-
-        Debug.Log($"Write time      : {writeMilliseconds:F4} ms");
-        Debug.Log($"Write speed     : {writeMBps:F2} MB/s");
-
-        Debug.Log("");
-
-        Debug.Log($"Read time       : {readMilliseconds:F4} ms");
-        Debug.Log($"Read speed      : {readMBps:F2} MB/s");
-
-        Debug.Log("========================================");
-        
     }
 
     // ================================================================
     // SERIALIZE
     // ================================================================
 
-    private byte[] Serialize(long[] values)
+    private ByteWriter Serialize(string[] values)
     {
-        using (var writer = new ByteWriter(values.Length * sizeof(long) + 4))
+        // Rough starting capacity.
+        // The writer can grow if required.
+        var writer = new ByteWriter(values.Length * 32 + 4);
+
+        writer.Write(values.Length);
+
+        for (int i = 0; i < values.Length; i++)
         {
-            writer.Write(values.Length);
-
-            for (int i = 0; i < values.Length; i++)
-            {
-                writer.Write(values[i]);
-            }
-
-            return writer.ToArray();
+            writer.Write(values[i]);
         }
+
+        return writer;
     }
 
     // ================================================================
     // DESERIALIZE + VALIDATE
     // ================================================================
 
-    private void DeserializeAndValidate(byte[] data, long[] expected)
+    private void DeserializeAndValidate(
+        ReadOnlySpan<byte> data,
+        string[] expected)
     {
-        using (var reader = new ByteReader(data))
-        {
-            reader.Read(out int count);
+        var reader = new ByteReader(data);
 
-            if (count != expected.Length)
+        reader.Read(out int count);
+
+        if (count != expected.Length)
+        {
+            throw new Exception(
+                $"COUNT MISMATCH! Expected {expected.Length}, got {count}");
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            reader.Read(out string actual);
+
+            string expectedValue = expected[i];
+
+            if (actual != expectedValue)
             {
                 throw new Exception(
-                    $"COUNT MISMATCH! Expected {expected.Length}, got {count}");
+                    $"DATA CORRUPTION at index {i}!\n" +
+                    $"Expected: {expectedValue}\n" +
+                    $"Actual:   {actual}");
             }
+        }
 
-            for (int i = 0; i < count; i++)
-            {
-                reader.Read(out long actual);
-
-                long expectedValue = expected[i];
-
-                if (actual != expectedValue)
-                {
-                    throw new Exception(
-                        $"DATA CORRUPTION at index {i}!\n" +
-                        $"Expected: {expectedValue}\n" +
-                        $"Actual:   {actual}");
-                }
-            }
+        if (reader.Remaining != 0)
+        {
+            throw new Exception(
+                $"Unread bytes remaining: {reader.Remaining}");
         }
     }
 
     // ================================================================
-    // DETERMINISTIC TEST DATA
+    // DETERMINISTIC TEST STRINGS
     // ================================================================
 
-    private long GenerateValue(int index)
+    private string GenerateString(int index)
     {
         switch (index % 8)
         {
             case 0:
-                return 0;
+                return "Sword";
 
             case 1:
-                return long.MaxValue;
+                return "Health Potion";
 
             case 2:
-                return long.MinValue;
+                return "Very Long Inventory Item Name";
 
             case 3:
-                return -1;
+                return "ABC123456789";
 
             case 4:
-                return 1234567890123456789L;
+                return "The quick brown fox jumps over the lazy dog";
 
             case 5:
-                return -1234567890123456789L;
+                return "中文测试";
 
             case 6:
-                return index;
+                return "éèêë";
 
             default:
-                return unchecked(
-                    (long)index * 0x123456789ABCDEF
-                );
+                return $"Item_{index}";
         }
     }
 
+    // ================================================================
+    // HELPERS
+    // ================================================================
+
     private double TicksToMilliseconds(long ticks)
     {
-        return ticks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+        return ticks * 1000.0 /
+               System.Diagnostics.Stopwatch.Frequency;
     }
-}
-public class TestItems : MonoBehaviour /*IItem*/
-{
-    public uint ItemId => throw new System.NotImplementedException();
 
-    public int MaxAmount => throw new System.NotImplementedException();
-
-    public Sprite Icon => throw new System.NotImplementedException();
-
-    public void SetID(uint id)
+    private string FormatBytes(double bytes)
     {
-        throw new System.NotImplementedException();
-    }
-}
+        if (bytes < 1024)
+            return $"{bytes:F0} B";
 
-public class TestItem2 : MonoBehaviour/*, IItem*/
-{
-    public uint ItemId => throw new System.NotImplementedException();
+        if (bytes < 1024 * 1024)
+            return $"{bytes / 1024.0:F2} KB";
 
-    public int MaxAmount => throw new System.NotImplementedException();
+        if (bytes < 1024 * 1024 * 1024)
+            return $"{bytes / (1024.0 * 1024.0):F2} MB";
 
-    public Sprite Icon => throw new System.NotImplementedException();
-
-    public void SetID(uint id)
-    {
-        throw new System.NotImplementedException();
+        return $"{bytes / (1024.0 * 1024.0 * 1024.0):F2} GB";
     }
 }
