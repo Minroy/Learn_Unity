@@ -1,303 +1,296 @@
-using System;
-
+using System.Diagnostics;
 using UnityEngine;
-using InventoryModule.Packer;
 
-public class BytePackerStringBenchmark : MonoBehaviour
+namespace InventoryModule.Packer
 {
-    private const int ELEMENT_COUNT = 1_000_000;
-    private const int ITERATIONS = 3;
-    private const int WARMUP = 3;
-
-    private void Start()
+    public class RandomStringLargeWorkingSetBenchmark : MonoBehaviour
     {
-        RunBenchmark();
-    }
+        [Header("Benchmark")]
+        [SerializeField] private int warmupMilliseconds = 1000;
+        [SerializeField] private int measurementMilliseconds = 3000;
 
-    private void RunBenchmark()
-    {
-        Debug.Log("========================================");
-        Debug.Log(" ByteWriter / ByteReader STRING Benchmark");
-        Debug.Log("========================================");
+        [Header("Dataset")]
+        [SerializeField] private int stringsPerSize = 16384;
 
-        // ------------------------------------------------------------
-        // Prepare deterministic source data
-        // ------------------------------------------------------------
-
-        string[] source = new string[ELEMENT_COUNT];
-
-        for (int i = 0; i < source.Length; i++)
+        [Header("String Sizes")]
+        [SerializeField]
+        private int[] stringLengths =
         {
-            source[i] = GenerateString(i);
+            8,
+            32,
+            128,
+            1024,
+            4096,
+            16384,
+            65536
+        };
+
+        [Header("Random")]
+        [SerializeField] private int randomSeed = 12345;
+
+        private string[][] _datasets;
+        private int[][] _indices;
+
+        private ByteWriter _writer;
+
+        private void Start()
+        {
+            GenerateDataset();
+            RunBenchmark();
         }
 
-        Debug.Log($"Elements      : {ELEMENT_COUNT:N0}");
-        Debug.Log($"Iterations    : {ITERATIONS}");
-        Debug.Log($"Warmup        : {WARMUP}");
+        // ================================================================
+        // DATASET
+        // ================================================================
 
-        // ------------------------------------------------------------
-        // Warmup
-        // ------------------------------------------------------------
-
-        Debug.Log("Warming up...");
-
-        for (int i = 0; i < WARMUP; i++)
+        private void GenerateDataset()
         {
-            using (var writer = Serialize(source))
+            System.Random random = new System.Random(randomSeed);
+
+            _datasets = new string[stringLengths.Length][];
+            _indices = new int[stringLengths.Length][];
+
+            UnityEngine.Debug.Log(
+                "Generating large random-string benchmark dataset...");
+
+            long totalBytes = 0;
+
+            for (int sizeIndex = 0; sizeIndex < stringLengths.Length; sizeIndex++)
             {
-                DeserializeAndValidate(writer.AsSpan(), source);
+                int length = stringLengths[sizeIndex];
+
+                string[] strings = new string[stringsPerSize];
+
+                for (int i = 0; i < stringsPerSize; i++)
+                {
+                    strings[i] = GenerateRandomAsciiString(
+                        random,
+                        length);
+
+                    totalBytes += strings[i].Length * sizeof(char);
+                }
+
+                _datasets[sizeIndex] = strings;
+
+                // Create shuffled access order.
+                int[] indices = new int[stringsPerSize];
+
+                for (int i = 0; i < indices.Length; i++)
+                    indices[i] = i;
+
+                Shuffle(indices, random);
+
+                _indices[sizeIndex] = indices;
+
+                double gb = totalBytes /
+                            (1024.0 * 1024.0 * 1024.0);
+
+                UnityEngine.Debug.Log(
+                    $"Generated {length:N0} chars | " +
+                    $"Dataset: {GetDatasetSizeGB(strings):F3} GB");
+            }
+
+            UnityEngine.Debug.Log(
+                $"TOTAL SOURCE DATASET: " +
+                $"{totalBytes / (1024.0 * 1024.0 * 1024.0):F3} GB");
+        }
+
+        private static string GenerateRandomAsciiString(
+            System.Random random,
+            int length)
+        {
+            char[] chars = new char[length];
+
+            for (int i = 0; i < chars.Length; i++)
+            {
+                // Printable ASCII.
+                chars[i] = (char)random.Next(32, 127);
+            }
+
+            return new string(chars);
+        }
+
+        private static void Shuffle(
+            int[] values,
+            System.Random random)
+        {
+            for (int i = values.Length - 1; i > 0; i--)
+            {
+                int j = random.Next(i + 1);
+
+                int temp = values[i];
+                values[i] = values[j];
+                values[j] = temp;
             }
         }
 
-        // ------------------------------------------------------------
-        // WRITE BENCHMARK
-        // ------------------------------------------------------------
-
-        long totalWriteTicks = 0;
-        long totalWriteAllocations = 0;
-        int serializedSize = 0;
-
-        Debug.Log("Starting benchmark...");
-
-        var sw = new System.Diagnostics.Stopwatch();
-
-        for (int iteration = 0; iteration < ITERATIONS; iteration++)
+        private static double GetDatasetSizeGB(string[] strings)
         {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            long bytes = 0;
 
-            long allocatedBefore =
-                GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < strings.Length; i++)
+                bytes += strings[i].Length * sizeof(char);
 
-            sw.Restart();
-
-            using (var writer = Serialize(source))
-            {
-                sw.Stop();
-
-                totalWriteTicks += sw.ElapsedTicks;
-
-                serializedSize = writer.Position;
-            }
-
-            long allocatedAfter =
-                GC.GetAllocatedBytesForCurrentThread();
-
-            totalWriteAllocations +=
-                allocatedAfter - allocatedBefore;
+            return bytes /
+                   (1024.0 * 1024.0 * 1024.0);
         }
 
-        double writeMilliseconds =
-            TicksToMilliseconds(totalWriteTicks) / ITERATIONS;
+        // ================================================================
+        // BENCHMARK
+        // ================================================================
 
-        double writeAllocatedBytes =
-            totalWriteAllocations / (double)ITERATIONS;
-
-        // ------------------------------------------------------------
-        // Create one writer buffer for READ benchmark
-        // ------------------------------------------------------------
-
-        using (var benchmarkWriter = Serialize(source))
+        private void RunBenchmark()
         {
-            ReadOnlySpan<byte> benchmarkData =
-                benchmarkWriter.AsSpan();
+            UnityEngine.Debug.Log(
+                "==============================================");
 
-            serializedSize = benchmarkData.Length;
+            UnityEngine.Debug.Log(
+                " RANDOM STRING LARGE WORKING SET BENCHMARK");
 
-            // --------------------------------------------------------
-            // READ BENCHMARK
-            // --------------------------------------------------------
+            UnityEngine.Debug.Log(
+                "==============================================");
 
-            long totalReadTicks = 0;
-            long totalReadAllocations = 0;
+            UnityEngine.Debug.Log(
+                $"Strings per size: {stringsPerSize:N0}");
 
-            for (int iteration = 0; iteration < ITERATIONS; iteration++)
+            UnityEngine.Debug.Log(
+                $"Warmup: {warmupMilliseconds:N0} ms");
+
+            UnityEngine.Debug.Log(
+                $"Measurement: {measurementMilliseconds:N0} ms");
+
+            UnityEngine.Debug.Log(
+                "==============================================");
+
+            for (int i = 0; i < stringLengths.Length; i++)
             {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
+                RunWriteBenchmark(
+                    stringLengths[i],
+                    _datasets[i],
+                    _indices[i]);
+            }
+        }
 
-                long allocatedBefore =
-                    GC.GetAllocatedBytesForCurrentThread();
+        // ================================================================
+        // WRITE
+        // ================================================================
 
-                sw.Restart();
+        private void RunWriteBenchmark(
+            int stringLength,
+            string[] strings,
+            int[] indices)
+        {
+            int payloadSize =
+                sizeof(int) +
+                stringLength * sizeof(char);
 
-                DeserializeAndValidate(
-                    benchmarkData,
-                    source);
+            /*
+             * Give the writer enough room so that the benchmark
+             * does NOT repeatedly trigger EnsureCapacity().
+             *
+             * We are measuring string serialization, not buffer growth.
+             */
+            int writerCapacity = payloadSize * 4;
 
-                sw.Stop();
+            if (writerCapacity < 1024)
+                writerCapacity = 1024;
 
-                totalReadTicks += sw.ElapsedTicks;
+            _writer = new ByteWriter(writerCapacity);
 
-                long allocatedAfter =
-                    GC.GetAllocatedBytesForCurrentThread();
+            // ------------------------------------------------------------
+            // Warmup
+            // ------------------------------------------------------------
 
-                totalReadAllocations +=
-                    allocatedAfter - allocatedBefore;
+            Stopwatch warmupTimer = Stopwatch.StartNew();
+
+            int warmupIndex = 0;
+
+            while (warmupTimer.ElapsedMilliseconds < warmupMilliseconds)
+            {
+                string value = strings[indices[warmupIndex]];
+
+                _writer.Reset();
+                _writer.Write(value);
+
+                warmupIndex++;
+
+                if (warmupIndex == indices.Length)
+                    warmupIndex = 0;
             }
 
-            double readMilliseconds =
-                TicksToMilliseconds(totalReadTicks) / ITERATIONS;
+            warmupTimer.Stop();
 
-            double readAllocatedBytes =
-                totalReadAllocations / (double)ITERATIONS;
+            // ------------------------------------------------------------
+            // Measurement
+            // ------------------------------------------------------------
 
-            // --------------------------------------------------------
+            long operations = 0;
+            long totalBytes = 0;
+
+            int index = 0;
+
+            Stopwatch timer = Stopwatch.StartNew();
+
+            while (timer.ElapsedMilliseconds < measurementMilliseconds)
+            {
+                string value = strings[indices[index]];
+
+                _writer.Reset();
+
+                _writer.Write(value);
+
+                /*
+                 * Consume the result so the benchmark always observes
+                 * the actual writer state.
+                 */
+                int written = _writer.Position;
+
+                totalBytes += written;
+                operations++;
+
+                index++;
+
+                if (index == indices.Length)
+                    index = 0;
+            }
+
+            timer.Stop();
+
+            // ------------------------------------------------------------
             // Results
-            // --------------------------------------------------------
+            // ------------------------------------------------------------
 
-            double megabytes =
-                serializedSize / (1024.0 * 1024.0);
+            double seconds =
+                timer.Elapsed.TotalSeconds;
 
-            double writeMBps =
-                megabytes / (writeMilliseconds / 1000.0);
+            double totalMB =
+                totalBytes /
+                (1024.0 * 1024.0);
 
-            double readMBps =
-                megabytes / (readMilliseconds / 1000.0);
+            double throughputMB =
+                totalMB / seconds;
 
-            Debug.Log("");
-            Debug.Log("========================================");
-            Debug.Log(" RESULTS");
-            Debug.Log("========================================");
+            double throughputGB =
+                throughputMB / 1024.0;
 
-            Debug.Log($"Serialized size : {serializedSize:N0} bytes");
-            Debug.Log($"                 {megabytes:F2} MB");
+            double nsPerOperation =
+                timer.Elapsed.TotalMilliseconds *
+                1_000_000.0 /
+                operations;
 
-            Debug.Log("");
+            UnityEngine.Debug.Log(
+                $"STRING {stringLength:N0} chars\n" +
+                $"  Payload:       {payloadSize:N0} B\n" +
+                $"  Dataset:       {GetDatasetSizeGB(strings):F3} GB\n" +
+                $"  Operations:    {operations:N0}\n" +
+                $"  Time:          {seconds:F3} s\n" +
+                $"  Total bytes:   {totalMB:N2} MB\n" +
+                $"  Throughput:    {throughputMB:N2} MB/s\n" +
+                $"  Throughput:    {throughputGB:N2} GB/s\n" +
+                $"  Time/op:       {nsPerOperation:N2} ns\n" +
+                $"  Final writer:  {_writer.Position:N0} B");
 
-            Debug.Log($"Write time      : {writeMilliseconds:F4} ms");
-            Debug.Log($"Write speed     : {writeMBps:F2} MB/s");
-            Debug.Log(
-                $"Write allocated : {FormatBytes(writeAllocatedBytes)} / run");
-
-            Debug.Log("");
-
-            Debug.Log($"Read time       : {readMilliseconds:F4} ms");
-            Debug.Log($"Read speed      : {readMBps:F2} MB/s");
-            Debug.Log(
-                $"Read allocated  : {FormatBytes(readAllocatedBytes)} / run");
-
-            Debug.Log("========================================");
+            _writer = null;
         }
-    }
-
-    // ================================================================
-    // SERIALIZE
-    // ================================================================
-
-    private ByteWriter Serialize(string[] values)
-    {
-        // Rough starting capacity.
-        // The writer can grow if required.
-        var writer = new ByteWriter(values.Length * 32 + 4);
-
-        writer.Write(values.Length);
-
-        for (int i = 0; i < values.Length; i++)
-        {
-            writer.Write(values[i]);
-        }
-
-        return writer;
-    }
-
-    // ================================================================
-    // DESERIALIZE + VALIDATE
-    // ================================================================
-
-    private void DeserializeAndValidate(
-        ReadOnlySpan<byte> data,
-        string[] expected)
-    {
-        var reader = new ByteReader(data);
-
-        reader.Read(out int count);
-
-        if (count != expected.Length)
-        {
-            throw new Exception(
-                $"COUNT MISMATCH! Expected {expected.Length}, got {count}");
-        }
-
-        for (int i = 0; i < count; i++)
-        {
-            reader.Read(out string actual);
-
-            string expectedValue = expected[i];
-
-            if (actual != expectedValue)
-            {
-                throw new Exception(
-                    $"DATA CORRUPTION at index {i}!\n" +
-                    $"Expected: {expectedValue}\n" +
-                    $"Actual:   {actual}");
-            }
-        }
-
-        if (reader.Remaining != 0)
-        {
-            throw new Exception(
-                $"Unread bytes remaining: {reader.Remaining}");
-        }
-    }
-
-    // ================================================================
-    // DETERMINISTIC TEST STRINGS
-    // ================================================================
-
-    private string GenerateString(int index)
-    {
-        switch (index % 8)
-        {
-            case 0:
-                return "Sword";
-
-            case 1:
-                return "Health Potion";
-
-            case 2:
-                return "Very Long Inventory Item Name";
-
-            case 3:
-                return "ABC123456789";
-
-            case 4:
-                return "The quick brown fox jumps over the lazy dog";
-
-            case 5:
-                return "中文测试";
-
-            case 6:
-                return "éèêë";
-
-            default:
-                return $"Item_{index}";
-        }
-    }
-
-    // ================================================================
-    // HELPERS
-    // ================================================================
-
-    private double TicksToMilliseconds(long ticks)
-    {
-        return ticks * 1000.0 /
-               System.Diagnostics.Stopwatch.Frequency;
-    }
-
-    private string FormatBytes(double bytes)
-    {
-        if (bytes < 1024)
-            return $"{bytes:F0} B";
-
-        if (bytes < 1024 * 1024)
-            return $"{bytes / 1024.0:F2} KB";
-
-        if (bytes < 1024 * 1024 * 1024)
-            return $"{bytes / (1024.0 * 1024.0):F2} MB";
-
-        return $"{bytes / (1024.0 * 1024.0 * 1024.0):F2} GB";
     }
 }

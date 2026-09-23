@@ -4,11 +4,9 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace InventoryModule.Packer
 {
-    // Interface any custom type implements to self-serialize.
     public interface IEncoder
     {
         void Encode(ByteWriter writer);
@@ -22,59 +20,49 @@ namespace InventoryModule.Packer
     #region ByteWriter
 
     /// <summary>
-    /// Byte-Aligned writing, Close to as Zero-Allocating as it can get. 
+    /// Byte-aligned, zero-allocation binary writer backed by ArrayPool.
     /// </summary>
     public sealed class ByteWriter : IDisposable
     {
         private byte[] _buffer;
+        private bool _disposed;
 
-        // Sentinel written for null strings so the reader
-        // can distinguish null from empty.
-        private const byte NULL_SENTINEL = 0xFF;
+        // Null string sentinel: written as charCount = -1 (int, 4 bytes).
+        // Negative charCount is impossible for a valid string, so -1 is unambiguous.
+        private const int NULL_STRING = -1;
 
-        //A marker for a dictionary
-        private const byte DICK_SENTINAL = 0xdD;
+        // Dictionary marker (reserved for future use).
+        private const byte DICT_SENTINEL = 0xDD;
 
         private const int MB = 1024 * 1024;
-
         private const int THRESHOLD_200_MB = 200 * MB;
         private const int THRESHOLD_1_GB = 1024 * MB;
-
         private const int GROW_200_MB = 200 * MB;
         private const int GROW_500_MB = 500 * MB;
 
         public int Position { get; private set; }
 
-        public ByteWriter(int capacity = 256)
+        public ByteWriter(int capacity = 512)
         {
-            // 1. Rent the initial buffer instead of 'new byte[]'
-            _buffer = ArrayPool<byte>.Shared.Rent(capacity);
-
-            //ofset set for ChecksumData
-            Position += 0;
+            _buffer = ArrayPool<byte>.Shared.Rent(capacity * 2);
         }
 
         // ── Buffer management ──────────────────────────────────────────
 
-        public void Reset() => Position = 4; // byte 0,1,2,3 is reserved for checksum.
+        public void Reset() => Position = 0;
 
         /// <summary>
-        /// Releases the current rented buffer back to ArrayPool and resets capacity back to the default size.
-        /// Use this after large write operations to reclaim system RAM.
+        /// Returns the current rented buffer to the pool and rents a fresh small one.
+        /// Call this after a large write to reclaim RAM.
         /// </summary>
         public void ClearInternalBuffer(int defaultCapacity = 256)
         {
             if (_buffer != null)
-            {
-                // 1. Return the huge 2GB array back to the pool so memory is reclaimed
                 ArrayPool<byte>.Shared.Return(_buffer);
-            }
 
-            // 2. Rent a fresh, small default array
             _buffer = ArrayPool<byte>.Shared.Rent(defaultCapacity);
             Position = 0;
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlySpan<byte> AsSpan() => _buffer.AsSpan(0, Position);
@@ -92,11 +80,9 @@ namespace InventoryModule.Packer
             if (bytesToWrite < 0)
                 throw new ArgumentOutOfRangeException(nameof(bytesToWrite));
 
-            // Already enough room.
             if (bytesToWrite <= _buffer.Length - Position)
                 return;
 
-            // Avoid integer overflow.
             if (Position > int.MaxValue - bytesToWrite)
                 throw new OverflowException("ByteWriter buffer size exceeded Int32.MaxValue.");
 
@@ -105,130 +91,149 @@ namespace InventoryModule.Packer
             long targetCapacity;
 
             if (currentCapacity < THRESHOLD_200_MB)
-            {
-                // Below 200 MB: exponential growth.
                 targetCapacity = currentCapacity * 2L;
-            }
             else if (currentCapacity < THRESHOLD_1_GB)
-            {
-                // 200 MB -> 400 MB -> 600 MB -> 800 MB -> 1 GB...
                 targetCapacity = currentCapacity + GROW_200_MB;
-            }
             else
-            {
-                // 1 GB -> 1.5 GB -> 2 GB -> 2.5 GB...
                 targetCapacity = currentCapacity + GROW_500_MB;
-            }
 
-            // If a single write needs more than our normal growth step,
-            // grow directly to at least the required size.
             targetCapacity = Math.Max(targetCapacity, requiredCapacity);
 
             if (targetCapacity > int.MaxValue)
                 throw new OutOfMemoryException(
                     $"Requested buffer capacity {targetCapacity:N0} exceeds Int32.MaxValue.");
 
-            int newCapacity = (int)targetCapacity;
+            byte[] newBuffer = ArrayPool<byte>.Shared.Rent((int)targetCapacity);
 
-            byte[] newBuffer = ArrayPool<byte>.Shared.Rent(newCapacity);
-
-            _buffer.AsSpan(0, Position).CopyTo(newBuffer);
+            // Unity Mono-safe copy — no Span.CopyTo dependency.
+            if (Position > 0)
+                Unsafe.CopyBlockUnaligned(ref newBuffer[0], ref _buffer[0], (uint)Position);
 
             ArrayPool<byte>.Shared.Return(_buffer);
-
             _buffer = newBuffer;
         }
+
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
+
             if (_buffer != null)
             {
                 ArrayPool<byte>.Shared.Return(_buffer);
                 _buffer = null;
             }
         }
+
+        // ── Core unmanaged write (private) ─────────────────────────────
+
+        /// <summary>
+        /// Writes any unmanaged value (primitive, struct, enum) directly into
+        /// the buffer with no boxing and no per-type overloads required.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void WriteUnmanaged<T>(T value) where T : unmanaged
+        {
+            int size = Unsafe.SizeOf<T>();
+            EnsureCapacity(size);
+            Unsafe.WriteUnaligned(ref _buffer[Position], value);
+            Position += size;
+        }
+
         // ── Primitives ─────────────────────────────────────────────────
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(bool value)
         {
             EnsureCapacity(1);
             _buffer[Position++] = (byte)(value ? 1 : 0);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(byte value)
         {
             EnsureCapacity(1);
             _buffer[Position++] = value;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(sbyte value) => Write<sbyte>(value);
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(short value) => Write<short>(value);
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(ushort value) => Write<ushort>(value);
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(sbyte value) => WriteUnmanaged(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(short value) => WriteUnmanaged(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(ushort value) => WriteUnmanaged(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(int value) => WriteUnmanaged(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(uint value) => WriteUnmanaged(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(long value) => WriteUnmanaged(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(ulong value) => WriteUnmanaged(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(char value) => WriteUnmanaged(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(decimal value) => WriteUnmanaged(value);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(int value) => Write<int>(value);
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(uint value) => Write<uint>(value);
-
+        public void Write(float value) => WriteUnmanaged(Unsafe.As<float, int>(ref value));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(long value) => Write<long>(value);
+        public void Write(double value) => WriteUnmanaged(Unsafe.As<double, long>(ref value));
 
+        // ── Enums (zero boxing, no unmanaged constraint needed) ────────
+
+        /// <summary>
+        /// Writes any enum with zero boxing by reinterpreting its underlying
+        /// unmanaged type directly. Works for byte, short, int, long backed enums.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(ulong value) => Write<ulong>(value);
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(float value) => Write(Unsafe.As<float, int>(ref value));
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(double value) => Write(Unsafe.As<double, long>(ref value));
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(decimal value) => Write<decimal>(value);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(char value) => Write<char>(value);
-
+        public void Write<TEnum>(TEnum value) where TEnum : unmanaged, Enum
+        {
+            WriteUnmanaged(value);
+        }
 
         // ── Strings ────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Format: [charCount: int] [UTF-16 bytes]
+        /// null  → charCount = -1, no bytes follow.
+        /// empty → charCount =  0, no bytes follow.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(string value)
         {
-            if (value == null)
+            if (value is null)
             {
-                Write(NULL_SENTINEL);
+                WriteUnmanaged(NULL_STRING); // -1
                 return;
             }
 
-            Write((byte)0x00); // not null
-
             int charCount = value.Length;
-            Write(charCount);
+            WriteUnmanaged(charCount);
 
-            if (charCount == 0)
-                return;
+            if (charCount == 0) return;
 
-            ReadOnlySpan<byte> bytes =
-                MemoryMarshal.AsBytes(value.AsSpan());
+            int byteCount = charCount * sizeof(char);
+            EnsureCapacity(byteCount);
 
-            EnsureCapacity(bytes.Length);
-
-            bytes.CopyTo(_buffer.AsSpan(Position));
-            Position += bytes.Length;
+            // Blit UTF-16 chars directly — no encoding overhead.
+            ref byte src = ref Unsafe.As<char, byte>(
+                ref MemoryMarshal.GetReference(value.AsSpan()));
+            Unsafe.CopyBlockUnaligned(ref _buffer[Position], ref src, (uint)byteCount);
+            Position += byteCount;
         }
 
         /// <summary>
-        /// Writes custom encoder types with zero boxing. (ignore bool, it doesnt do anything)
+        /// Writes a string array: [count: int] then each string.
+        /// </summary>
+        public void Write(string[] values)
+        {
+            if (values is null) { WriteUnmanaged(0); return; }
+
+            int count = values.Length;
+            WriteUnmanaged(count);
+
+            for (int i = 0; i < count; i++)
+                Write(values[i]);
+        }
+
+        // ── IEncoder ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Writes a custom IEncoder type with zero boxing.
+        /// The bool _ is a dummy to disambiguate from the unmanaged overloads.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write<T>(T encoder, bool _ = false) where T : IEncoder
@@ -236,32 +241,21 @@ namespace InventoryModule.Packer
             encoder?.Encode(this);
         }
 
-
-        /// <summary>
-        /// Can only write, unmanged-Types. 
-        /// </summary>
-        private void Write<T>(T value) where T : unmanaged
-        {
-            int size = Unsafe.SizeOf<T>();
-            EnsureCapacity(size);
-
-            // Writes the raw memory of the enum directly into the buffer array
-            Unsafe.WriteUnaligned(ref _buffer[Position], value);
-            Position += size;
-        }
+        // ── Collections — unmanaged ─────────────────────────────────────
 
         public void Write<T>(List<T> list) where T : unmanaged
         {
-            if (list == null) { Write(0); return; }
-            int count = list.Count;
-            Write(count);
-            if (count == 0) return;
+            if (list is null) { WriteUnmanaged(0); return; }
 
+            int count = list.Count;
             int elementSize = Unsafe.SizeOf<T>();
             int totalBytes = count * elementSize;
+
+            WriteUnmanaged(count);
+            if (count == 0) return;
+
             EnsureCapacity(totalBytes);
 
-            // Fast-path write directly into pooled buffer without per-element capacity checks
             for (int i = 0; i < count; i++)
             {
                 T item = list[i];
@@ -270,82 +264,92 @@ namespace InventoryModule.Packer
             }
         }
 
-        public void Write<T>(List<T> list, bool _ = default) where T : IEncoder
-        {
-            Write(list.Count);
-            if (list.Count <= 0) return;
-
-            for (int i = 0; i < list.Count; i++)
-            {
-                Write(list[i]);
-            }
-        }
-
         public void Write<T>(T[] items) where T : unmanaged
         {
-            if (items == null) { Write(0); return; }
+            if (items is null) { WriteUnmanaged(0); return; }
 
             int count = items.Length;
-            Write(count);
+            int bytesToCopy = count * Unsafe.SizeOf<T>();
+
+            WriteUnmanaged(count);
             if (count == 0) return;
 
-            int bytesToCopy = count * Unsafe.SizeOf<T>();
             EnsureCapacity(bytesToCopy);
-
-            // Fast memory copy on .NET 4.8 / Unity Mono
             Buffer.BlockCopy(items, 0, _buffer, Position, bytesToCopy);
             Position += bytesToCopy;
         }
-        public void Write<T>(T[] items, bool _ = default) where T : IEncoder
-        {
-            Write(items.Length);
-            if (items.Length <= 0) return;
-
-            for (int i = 0; i < items.Length; i++)
-            {
-                Write(items[i]);
-            }
-        }
 
         /// <summary>
-        /// Can only write, unmanged-Types. 
+        /// Writes a ReadOnlySpan of unmanaged values: [count: int] [raw bytes].
         /// </summary>
         public void Write<T>(ReadOnlySpan<T> items) where T : unmanaged
         {
-            Write(items.Length);
-            var bytes = MemoryMarshal.AsBytes(items);
-            EnsureCapacity(bytes.Length);
-            bytes.CopyTo(_buffer.AsSpan(Position));
-            Position += bytes.Length;
+            int count = items.Length;
+            int byteCount = count * Unsafe.SizeOf<T>();
+
+            WriteUnmanaged(count);
+            if (count == 0) return;
+
+            EnsureCapacity(byteCount);
+
+            ref byte src = ref Unsafe.As<T, byte>(
+                ref MemoryMarshal.GetReference(items));
+            Unsafe.CopyBlockUnaligned(ref _buffer[Position], ref src, (uint)byteCount);
+            Position += byteCount;
+        }
+
+        /// <summary>
+        /// Writes a Span of unmanaged values: [count: int] [raw bytes].
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write<T>(Span<T> items) where T : unmanaged
+            => Write((ReadOnlySpan<T>)items);
+
+        // ── Collections — IEncoder ──────────────────────────────────────
+
+        public void Write<T>(List<T> list, bool _ = default) where T : IEncoder
+        {
+            if (list is null) { WriteUnmanaged(0); return; }
+
+            int count = list.Count;
+            WriteUnmanaged(count);
+            if (count == 0) return;
+
+            for (int i = 0; i < count; i++)
+                Write(list[i]);
+        }
+
+        public void Write<T>(T[] items, bool _ = default) where T : IEncoder
+        {
+            if (items is null) { WriteUnmanaged(0); return; }
+
+            int count = items.Length;
+            WriteUnmanaged(count);
+            if (count == 0) return;
+
+            for (int i = 0; i < count; i++)
+                Write(items[i]);
         }
 
         public void Write<T>(ReadOnlySpan<T> items, bool _ = default) where T : IEncoder
         {
-            Write(items.Length);
+            WriteUnmanaged(items.Length);
             for (int i = 0; i < items.Length; i++)
-            {
                 Write(items[i]);
-            }
         }
-
-
     }
-}
-
 
     #endregion
 
-#region ByteReader
+    #region ByteReader
 
-//WIP: Still tryna figure stuff out. 
-namespace InventoryModule.Packer
-{
     public ref struct ByteReader
     {
         private ReadOnlySpan<byte> _buffer;
         private int _position;
 
-        private const byte NULL_SENTINEL = 0xFF;
+        // Matches ByteWriter: null string sentinel is charCount == -1.
+        private const int NULL_STRING = -1;
 
         public ByteReader(ReadOnlySpan<byte> buffer)
         {
@@ -353,31 +357,37 @@ namespace InventoryModule.Packer
             _position = 0;
         }
 
-        public int Position => _position;
-        public int Length => _buffer.Length;
-        public int Remaining => _buffer.Length - _position;
+        public readonly int Position => _position;
+        public readonly int Length => _buffer.Length;
+        public readonly int Remaining => _buffer.Length - _position;
 
-        public ReadOnlySpan<byte> AsSpan() => _buffer;
+        public readonly ReadOnlySpan<byte> AsSpan() => _buffer;
+        public readonly ReadOnlySpan<byte> UnreadSpan => _buffer[_position..];
 
-        public ReadOnlySpan<byte> UnreadSpan =>
-            _buffer.Slice(_position);
-
-        // ── Buffer management ──────────────────────────────────────
+        // ── Bounds check ───────────────────────────────────────────────
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void CheckBounds(int bytesNeeded)
+        private readonly void CheckBounds(int bytesNeeded)
         {
-            if (bytesNeeded < 0 ||
-                _position > _buffer.Length - bytesNeeded)
-            {
+            if (bytesNeeded < 0 || _position > _buffer.Length - bytesNeeded)
                 throw new InvalidOperationException(
                     $"ByteReader out of bounds: need {bytesNeeded} byte(s) " +
-                    $"at position {_position}, " +
-                    $"buffer length {_buffer.Length}.");
-            }
+                    $"at position {_position}, buffer length {_buffer.Length}.");
         }
 
-        // ── Primitives ─────────────────────────────────────────────
+        // ── Core unmanaged read (private) ──────────────────────────────
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ReadUnmanaged<T>(out T value) where T : unmanaged
+        {
+            int size = Unsafe.SizeOf<T>();
+            CheckBounds(size);
+            ref readonly byte src = ref _buffer[_position];
+            value = Unsafe.ReadUnaligned<T>(ref Unsafe.AsRef(in src));
+            _position += size;
+        }
+
+        // ── Primitives ─────────────────────────────────────────────────
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Read(out bool value)
@@ -393,125 +403,60 @@ namespace InventoryModule.Packer
             value = _buffer[_position++];
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out sbyte value)
-        {
-            CheckBounds(1);
-            value = unchecked((sbyte)_buffer[_position++]);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out short value)
-        {
-            CheckBounds(2);
-            value = BinaryPrimitives.ReadInt16LittleEndian(
-                _buffer.Slice(_position, 2));
-
-            _position += 2;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out ushort value)
-        {
-            CheckBounds(2);
-            value = BinaryPrimitives.ReadUInt16LittleEndian(
-                _buffer.Slice(_position, 2));
-
-            _position += 2;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out int value)
-        {
-            CheckBounds(4);
-            value = BinaryPrimitives.ReadInt32LittleEndian(
-                _buffer.Slice(_position, 4));
-
-            _position += 4;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out uint value)
-        {
-            CheckBounds(4);
-            value = BinaryPrimitives.ReadUInt32LittleEndian(
-                _buffer.Slice(_position, 4));
-
-            _position += 4;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out long value)
-        {
-            CheckBounds(8);
-            value = BinaryPrimitives.ReadInt64LittleEndian(
-                _buffer.Slice(_position, 8));
-
-            _position += 8;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out ulong value)
-        {
-            CheckBounds(8);
-            value = BinaryPrimitives.ReadUInt64LittleEndian(
-                _buffer.Slice(_position, 8));
-
-            _position += 8;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out sbyte value) => ReadUnmanaged(out value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out short value) => ReadUnmanaged(out value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out ushort value) => ReadUnmanaged(out value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out int value) => ReadUnmanaged(out value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out uint value) => ReadUnmanaged(out value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out long value) => ReadUnmanaged(out value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out ulong value) => ReadUnmanaged(out value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out char value) => ReadUnmanaged(out value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out decimal value) => ReadUnmanaged(out value);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Read(out float value)
         {
-            Read(out int bits);
-            value = BitConverter.Int32BitsToSingle(bits);
+            ReadUnmanaged(out int bits);
+            value = Unsafe.As<int,float>(ref bits);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Read(out double value)
         {
-            Read(out long bits);
-            value = BitConverter.Int64BitsToDouble(bits);
+            ReadUnmanaged(out long bits);
+            value = Unsafe.As<long, double>(ref bits);
+
         }
 
+        // ── Enums ──────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Reads any enum with zero boxing.
+        /// Must match the WriteEnum<TEnum> call on the writer side.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out decimal value)
+        public void Read<TEnum>(out TEnum value) where TEnum : unmanaged, Enum
         {
-            CheckBounds(16);
-
-            ref readonly byte src =
-                ref _buffer[_position];
-
-            value = Unsafe.ReadUnaligned<decimal>(
-                ref Unsafe.AsRef(in src));
-
-            _position += 16;
+            ReadUnmanaged(out value);
         }
 
+        // ── Strings ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Reads a UTF-16 string written by ByteWriter.Write(string).
+        /// charCount == -1 → null. charCount == 0 → empty. charCount > 0 → string.
+        /// Throws on corrupt data.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out char value)
-        {
-            Read(out short bits);
-            value = (char)bits;
-        }
-
-        // ── UTF-16 String ──────────────────────────────────────────
-
         public void Read(out string value)
         {
-            Read(out byte marker);
+            ReadUnmanaged(out int charCount);
 
-            if (marker == NULL_SENTINEL)
+            if (charCount == NULL_STRING)
             {
                 value = null;
                 return;
             }
-
-            Read(out int charCount);
-
-            if (charCount < 0)
-                throw new InvalidOperationException(
-                    $"Invalid string character count: {charCount}.");
 
             if (charCount == 0)
             {
@@ -519,15 +464,185 @@ namespace InventoryModule.Packer
                 return;
             }
 
-            int byteCount = checked(charCount * sizeof(char));
+            if (charCount < 0)
+                throw new InvalidOperationException(
+                    $"Corrupted payload: charCount was {charCount}.");
 
+            int byteCount = charCount * sizeof(char);
             CheckBounds(byteCount);
 
-            value = MemoryMarshal
-                .Cast<byte, char>(_buffer.Slice(_position, byteCount)).ToString();
+            ref byte src = ref MemoryMarshal.GetReference(_buffer);
+            ref char charRef = ref Unsafe.As<byte, char>(
+                ref Unsafe.Add(ref src, _position));
 
+            ReadOnlySpan<char> chars = MemoryMarshal.CreateReadOnlySpan(ref charRef, charCount);
+            value = new string(chars);
             _position += byteCount;
         }
+
+        /// <summary>
+        /// Reads a string array written by ByteWriter.Write(string[]).
+        /// </summary>
+        public void Read(out string[] values)
+        {
+            ReadUnmanaged(out int count);
+
+            if (count <= 0)
+            {
+                values = Array.Empty<string>();
+                return;
+            }
+
+            values = new string[count];
+            for (int i = 0; i < count; i++)
+                Read(out values[i]);
+        }
+
+        // ── IDecoder ───────────────────────────────────────────────────
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read<T>(T decoder, bool _ = false) where T : IDecoder
+            => decoder?.Decode(this);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Read<T>(out T decoder, bool _ = false) where T : IDecoder, new()
+        {
+            decoder = new T();
+            decoder.Decode(this);
+        }
+
+        // ── Lists — unmanaged ──────────────────────────────────────────
+
+        public void Read<T>(out List<T> list) where T : unmanaged
+        {
+            ReadUnmanaged(out int count);
+
+            if (count <= 0)
+            {
+                list = new List<T>(0);
+                return;
+            }
+
+            list = new List<T>(count);
+            for (int i = 0; i < count; i++)
+            {
+                ReadUnmanaged(out T item);
+                list.Add(item);
+            }
+        }
+
+        // ── Lists — IDecoder ───────────────────────────────────────────
+
+        public void Read<T>(out List<T> list, bool _ = default) where T : IDecoder, new()
+        {
+            ReadUnmanaged(out int count);
+
+            if (count <= 0)
+            {
+                list = new List<T>(0);
+                return;
+            }
+
+            list = new List<T>(count);
+            for (int i = 0; i < count; i++)
+            {
+                T item = new T();
+                item.Decode(this);
+                list.Add(item);
+            }
+        }
+
+        // ── Arrays — unmanaged ─────────────────────────────────────────
+
+        public void Read<T>(out T[] items) where T : unmanaged
+        {
+            ReadUnmanaged(out int count);
+
+            if (count <= 0)
+            {
+                items = Array.Empty<T>();
+                return;
+            }
+
+            items = new T[count];
+            int bytesToCopy = count * Unsafe.SizeOf<T>();
+            CheckBounds(bytesToCopy);
+
+            ref byte src = ref MemoryMarshal.GetReference(_buffer[_position..]);
+            ref byte dest = ref Unsafe.As<T, byte>(ref items[0]);
+            Unsafe.CopyBlockUnaligned(ref dest, ref src, (uint)bytesToCopy);
+            _position += bytesToCopy;
+        }
+
+        // ── Arrays — IDecoder ──────────────────────────────────────────
+
+        public void Read<T>(out T[] items, bool _ = default) where T : IDecoder, new()
+        {
+            ReadUnmanaged(out int count);
+
+            if (count <= 0)
+            {
+                items = Array.Empty<T>();
+                return;
+            }
+
+            items = new T[count];
+            for (int i = 0; i < count; i++)
+            {
+                T item = new T();
+                item.Decode(this);
+                items[i] = item;
+            }
+        }
+
+        // ── Spans — unmanaged ──────────────────────────────────────────
+
+        /// <summary>
+        /// Reads into a caller-provided Span. The count stored in the buffer
+        /// must match destination.Length exactly, otherwise data is corrupt.
+        /// </summary>
+        public void Read<T>(Span<T> destination) where T : unmanaged
+        {
+            ReadUnmanaged(out int count);
+
+            if (count <= 0) return;
+
+            if (count != destination.Length)
+                throw new InvalidOperationException(
+                    $"Span length mismatch: buffer has {count} elements, " +
+                    $"destination has {destination.Length}.");
+
+            int bytesToCopy = count * Unsafe.SizeOf<T>();
+            CheckBounds(bytesToCopy);
+
+            ref byte src = ref MemoryMarshal.GetReference(_buffer[_position..]);
+            ref byte dest = ref Unsafe.As<T, byte>(
+                ref MemoryMarshal.GetReference(destination));
+            Unsafe.CopyBlockUnaligned(ref dest, ref src, (uint)bytesToCopy);
+            _position += bytesToCopy;
+        }
+
+        // ── Spans — IDecoder ───────────────────────────────────────────
+
+        public void Read<T>(Span<T> destination, bool _ = default) where T : IDecoder, new()
+        {
+            ReadUnmanaged(out int count);
+
+            if (count <= 0) return;
+
+            if (count != destination.Length)
+                throw new InvalidOperationException(
+                    $"Span length mismatch: buffer has {count} elements, " +
+                    $"destination has {destination.Length}.");
+
+            for (int i = 0; i < count; i++)
+            {
+                T item = new T();
+                item.Decode(this);
+                destination[i] = item;
+            }
+        }
     }
+
+    #endregion
 }
-#endregion
