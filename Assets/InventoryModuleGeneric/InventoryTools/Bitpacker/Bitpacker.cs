@@ -1,9 +1,9 @@
 using System;
 using System.Buffers;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using UnityEngine.UIElements;
 
 namespace InventoryModule.Packer
 {
@@ -24,105 +24,118 @@ namespace InventoryModule.Packer
     /// </summary>
     public sealed class ByteWriter : IDisposable
     {
+        // Threshold configuration for exponential vs. step growth
+        private const int ExponentialGrowthThreshold = 64; // 64KB to prevent 84kb LOH Arraypool allocstions. 
+        private const int LinearStepSize = 128 * 1024; // 128 KB steps (Aligns with ArrayPool power-of-two buckets)
+
         private byte[] _buffer;
+        private int _startOffset;
+        private int Position;
+        private bool _isPooled;
         private bool _disposed;
+        public int Capacity => _buffer?.Length ?? 0;
+        public ReadOnlySpan<byte> WrittenSpan => new ReadOnlySpan<byte>(_buffer, 0, Position);
 
-        // Null string sentinel: written as charCount = -1 (int, 4 bytes).
-        // Negative charCount is impossible for a valid string, so -1 is unambiguous.
-        private const int NULL_STRING = -1;
-
-        // Dictionary marker (reserved for future use).
-        private const byte DICT_SENTINEL = 0xDD;
-
-        private const int MB = 1024 * 1024;
-        private const int THRESHOLD_200_MB = 200 * MB;
-        private const int THRESHOLD_1_GB = 1024 * MB;
-        private const int GROW_200_MB = 200 * MB;
-        private const int GROW_500_MB = 500 * MB;
-
-        public int Position { get; private set; }
-
-        public ByteWriter(int capacity = 512)
+        public ByteWriter(int initialCapacity = 256)
         {
-            _buffer = ArrayPool<byte>.Shared.Rent(capacity * 2);
-        }
-
-        // ── Buffer management ──────────────────────────────────────────
-
-        public void Reset() => Position = 0;
-
-        /// <summary>
-        /// Returns the current rented buffer to the pool and rents a fresh small one.
-        /// Call this after a large write to reclaim RAM.
-        /// </summary>
-        public void ClearInternalBuffer(int defaultCapacity = 256)
-        {
-            if (_buffer != null)
-                ArrayPool<byte>.Shared.Return(_buffer);
-
-            _buffer = ArrayPool<byte>.Shared.Rent(defaultCapacity);
+            _buffer = ArrayPool<byte>.Shared.Rent(initialCapacity);
+            _startOffset = 0;
+            _isPooled = true;
             Position = 0;
+            _disposed = false;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlySpan<byte> AsSpan() => _buffer.AsSpan(0, Position);
+        // Full User Array (Unpooled)
+        public ByteWriter(byte[] userArray) : this(userArray, 0, userArray?.Length ?? 0) { }
 
-        public byte[] ToArray()
+        // User Sub-Buffer with Offset and Length (Unpooled)
+        public ByteWriter(byte[] userArray, int offset, int length)
         {
-            var result = new byte[Position];
-            _buffer.AsSpan(0, Position).CopyTo(result);
-            return result;
+            if (userArray == null)
+                throw new ArgumentNullException(nameof(userArray));
+            if (offset < 0 || length < 0 || offset + length > userArray.Length)
+                throw new ArgumentOutOfRangeException("Invalid offset or length for user buffer.");
+
+            _buffer = userArray;
+            _startOffset = offset;
+            Position = offset;
+            _isPooled = false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnsureCapacity(int bytesToWrite)
         {
-            if (bytesToWrite < 0)
-                throw new ArgumentOutOfRangeException(nameof(bytesToWrite));
-
-            if (bytesToWrite <= _buffer.Length - Position)
-                return;
-
-            if (Position > int.MaxValue - bytesToWrite)
-                throw new OverflowException("ByteWriter buffer size exceeded Int32.MaxValue.");
-
-            int requiredCapacity = Position + bytesToWrite;
-            long currentCapacity = _buffer.Length;
-            long targetCapacity;
-
-            if (currentCapacity < THRESHOLD_200_MB)
-                targetCapacity = currentCapacity * 2L;
-            else if (currentCapacity < THRESHOLD_1_GB)
-                targetCapacity = currentCapacity + GROW_200_MB;
-            else
-                targetCapacity = currentCapacity + GROW_500_MB;
-
-            targetCapacity = Math.Max(targetCapacity, requiredCapacity);
-
-            if (targetCapacity > int.MaxValue)
-                throw new OutOfMemoryException(
-                    $"Requested buffer capacity {targetCapacity:N0} exceeds Int32.MaxValue.");
-
-            byte[] newBuffer = ArrayPool<byte>.Shared.Rent((int)targetCapacity);
-
-            // Unity Mono-safe copy — no Span.CopyTo dependency.
-            if (Position > 0)
-                Unsafe.CopyBlockUnaligned(ref newBuffer[0], ref _buffer[0], (uint)Position);
-
-            ArrayPool<byte>.Shared.Return(_buffer);
-            _buffer = newBuffer;
+            // Hot Path: Directly inlined by JIT due to small IL size
+            if (bytesToWrite > _buffer.Length - Position)
+            {
+                Grow(bytesToWrite);
+            }
         }
 
-        public void Dispose()
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void Grow(int bytesToWrite)
         {
-            if (_disposed) return;
-            _disposed = true;
+            int currentCapacity = _buffer.Length;
+            int requiredCapacity = Position + bytesToWrite;
+            int newCapacity;
 
-            if (_buffer != null)
+            // Small buffers grow exponentially (2x) for fast initial expansion.
+            // Large buffers switch to fixed step growth to prevent massive over-allocation spikes.
+            if (currentCapacity < ExponentialGrowthThreshold)
             {
-                ArrayPool<byte>.Shared.Return(_buffer);
+                newCapacity = Math.Max(currentCapacity * 2, requiredCapacity);
+            }
+            else
+            {
+                // Calculate growth aligned to step boundaries
+                int steps = (requiredCapacity - currentCapacity + LinearStepSize - 1) / LinearStepSize;
+                newCapacity = currentCapacity + (steps * LinearStepSize);
+            }
+
+            byte[] newBuffer = ArrayPool<byte>.Shared.Rent(newCapacity);
+            Unsafe.CopyBlockUnaligned(ref newBuffer[0], ref _buffer[0], (uint)Position);
+
+            if (_isPooled)
+            {
+                ArrayPool<byte>.Shared.Return(_buffer, clearArray: true);
+            }
+
+            _buffer = newBuffer;
+            _isPooled = true;
+        }
+
+        public void Reset()
+        {
+            
+            Position = 0;
+        }
+
+        public void ClearInternalBuffer()
+        {
+           
+
+            if (_isPooled && _buffer != null)
+            {
+                ArrayPool<byte>.Shared.Return(_buffer, clearArray: true);
                 _buffer = null;
             }
+
+            Position = 0;
+        }
+
+      
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            if (_isPooled && _buffer != null)
+            {
+                ArrayPool<byte>.Shared.Return(_buffer, clearArray: true);
+                _buffer = null;
+            }
+
+            _disposed = true;
         }
 
         // ── Core unmanaged write (private) ─────────────────────────────
@@ -196,7 +209,7 @@ namespace InventoryModule.Packer
         {
             if (value is null)
             {
-                WriteUnmanaged(NULL_STRING); // -1
+                WriteUnmanaged(-1); // -1
                 return;
             }
 
@@ -417,7 +430,7 @@ namespace InventoryModule.Packer
         public void Read(out float value)
         {
             ReadUnmanaged(out int bits);
-            value = Unsafe.As<int,float>(ref bits);
+            value = Unsafe.As<int, float>(ref bits);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -465,18 +478,14 @@ namespace InventoryModule.Packer
             }
 
             if (charCount < 0)
-                throw new InvalidOperationException(
-                    $"Corrupted payload: charCount was {charCount}.");
+                throw new InvalidOperationException($"Corrupted payload: charCount was {charCount}.");
 
             int byteCount = charCount * sizeof(char);
             CheckBounds(byteCount);
 
-            ref byte src = ref MemoryMarshal.GetReference(_buffer);
-            ref char charRef = ref Unsafe.As<byte, char>(
-                ref Unsafe.Add(ref src, _position));
-
-            ReadOnlySpan<char> chars = MemoryMarshal.CreateReadOnlySpan(ref charRef, charCount);
-            value = new string(chars);
+            ReadOnlySpan<byte> byteSlice = _buffer.Slice(_position, byteCount);
+            ReadOnlySpan<char> charSlice = MemoryMarshal.Cast<byte, char>(byteSlice);
+            value = new string(charSlice);
             _position += byteCount;
         }
 
@@ -589,7 +598,7 @@ namespace InventoryModule.Packer
             items = new T[count];
             for (int i = 0; i < count; i++)
             {
-                T item = new T();
+                T item = new();
                 item.Decode(this);
                 items[i] = item;
             }
@@ -637,7 +646,7 @@ namespace InventoryModule.Packer
 
             for (int i = 0; i < count; i++)
             {
-                T item = new T();
+                T item = new();
                 item.Decode(this);
                 destination[i] = item;
             }
