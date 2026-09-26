@@ -1,51 +1,53 @@
 ﻿using System;
-using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using UnityEditor;
 
 namespace InventoryModule.Packer
 {
-    public sealed class FastBytes : IDisposable, IAsyncDisposable, ICustomFormatter
+    public enum ByteEncodingProtocol
     {
-        public ByteWriter Writer { get; private set; }
+        /// <summary>
+        /// Priroties speed over safety.
+        /// </summary>
+        Fast,
+
+        /// <summary>
+        /// AutoAdds safety features. (slower)
+        /// </summary>
+        Safe,
+
+        /// <summary>
+        /// has some safety but a little faster then SafeMode. 
+        /// </summary>
+        Mixed,
+    }
+    public sealed class FastBytes : IDisposable
+    {
+        private ByteWriter Writer;
         private const int DefaultCapacity = 1024; //1kb starting buffer size. 
 
-        public enum ByteEncodingMode
-        {
-            /// <summary>
-            /// Priroties speed over safety.
-            /// </summary>
-            Fast,
 
-            /// <summary>
-            /// AutoAdds safety features. (slower)
-            /// </summary>
-            Safe,
 
-            /// <summary>
-            /// Less safety but also fastter speeds. 
-            /// </summary>
-            Mixed,
-
-            ThreadSafe_Safe, // TODO. Ignore. 
-            ThreadSafe_Fast // TODO. Ignore. 
-        }
-
-        public ByteEncodingMode Mode { get; private set; }
+        private ByteEncodingProtocol Mode;
+        private SerializationMode SerializationMode;
 
         // defualt contructor. 
-        public FastBytes(int bufferSize = DefaultCapacity, ByteEncodingMode Mode = ByteEncodingMode.Mixed)
+        public FastBytes(int bufferSize = DefaultCapacity, ByteEncodingProtocol mode = ByteEncodingProtocol.Mixed)
         {
             Writer = new ByteWriter(bufferSize);
-            this.Mode = Mode;
-            
+            this.Mode = mode;
         }
 
         //contructer that can writer to an exsisting buffer. 
-        public FastBytes(byte[] buffer, int offset , ByteEncodingMode Mode = ByteEncodingMode.Mixed)
+        public FastBytes(byte[] buffer, int offset, ByteEncodingProtocol mode = ByteEncodingProtocol.Mixed)
         {
+            Writer = new ByteWriter(buffer, offset, buffer.Length - offset);
+            this.Mode = mode;
 
         }
 
-        public FastBytes(ByteWriter byteWriter, ByteEncodingMode Mode = ByteEncodingMode.Mixed)
+        public FastBytes(ByteWriter byteWriter, ByteEncodingProtocol Mode = ByteEncodingProtocol.Mixed)
         {
             Writer = byteWriter;
             this.Mode = Mode;
@@ -57,21 +59,70 @@ namespace InventoryModule.Packer
         }
 
 
+        // ── BATCH MODE: Write multiple items to same buffer ──
 
-
-        void IDisposable.Dispose()
+        /// <summary>
+        /// Batch mode: append unmanaged value to internal buffer.
+        /// Call GetBuffer() or ToArray() when done.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void BatchWrite<T>(T value) where T : unmanaged
         {
-            throw new NotImplementedException();
+            Writer.WriteUnmanaged(value);
         }
 
-        ValueTask IAsyncDisposable.DisposeAsync()
+        /// <summary>
+        /// Batch mode: append encoded object to internal buffer.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void BatchWrite<T>(T value, bool _ = default) where T : IEncoder
         {
-            throw new NotImplementedException();
+            Writer.Write(value);
         }
 
-        string ICustomFormatter.Format(string format, object arg, IFormatProvider formatProvider)
+        // ── SINGLE MODE: One-shot serialize ──
+
+        /// <summary>
+        /// Single mode: serialize one unmanaged value, return new byte array.
+        /// Resets buffer, writes, returns copy.
+        /// </summary>
+        public byte[] Serialize<T>(T value) where T : unmanaged
         {
-            throw new NotImplementedException();
+            Writer.Reset();
+            Writer.WriteUnmanaged(value);
+            return Writer.ToArray();
         }
+
+        /// <summary>
+        /// Single mode: serialize one encoded object, return new byte array.
+        /// </summary>
+        public byte[] Serialize<T>(T value, bool _ = default) where T : IEncoder
+        {
+            Writer.Reset();
+            Writer.Write(value);
+            return Writer.ToArray();
+        }
+
+        // ── BUFFER ACCESS ──
+
+        /// <summary>
+        /// Batch mode: get current buffer span (only written portion).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ReadOnlySpan<byte> GetBuffer() => Writer.AsSpan();
+
+        /// <summary>
+        /// Batch mode: reset position to 0. Clear for next batch.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Reset() => Writer.Reset();
+
+        /// <summary>
+        /// Batch mode: copy current buffer to new array.
+        /// </summary>
+        public byte[] ToArray() => Writer.ToArray();
+
+        public void Dispose() => Writer.Dispose();
     }
 }
+

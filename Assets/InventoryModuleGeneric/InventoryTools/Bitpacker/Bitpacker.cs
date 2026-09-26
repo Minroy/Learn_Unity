@@ -3,7 +3,6 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using UnityEngine.UIElements;
 
 namespace InventoryModule.Packer
 {
@@ -25,23 +24,31 @@ namespace InventoryModule.Packer
     public sealed class ByteWriter : IDisposable
     {
         // Threshold configuration for exponential vs. step growth
-        private const int ExponentialGrowthThreshold = 64; // 64KB to prevent 84kb LOH Arraypool allocstions. 
-        private const int LinearStepSize = 128 * 1024; // 128 KB steps (Aligns with ArrayPool power-of-two buckets)
+        private const int ExponentialGrowthThreshold = 64 * 1024; // 64 KB threshold to avoid LOH allocations
+        private const int LinearStepSize = 128 * 1024;            // 128 KB steps (Aligns with ArrayPool power-of-two buckets)
 
+        // 8-byte aligned fields
         private byte[] _buffer;
+        public byte[] BufferInternal => _buffer;
+
+        // 4-byte aligned fields
         private int _startOffset;
-        private int Position;
+        private int _position;
+        public int Position => _position;
+
+        // 1-byte aligned fields (Packed together at the end to prevent internal padding)
         private bool _isPooled;
         private bool _disposed;
+
         public int Capacity => _buffer?.Length ?? 0;
-        public ReadOnlySpan<byte> WrittenSpan => new ReadOnlySpan<byte>(_buffer, 0, Position);
+
 
         public ByteWriter(int initialCapacity = 256)
         {
             _buffer = ArrayPool<byte>.Shared.Rent(initialCapacity);
             _startOffset = 0;
             _isPooled = true;
-            Position = 0;
+            _position = 0;
             _disposed = false;
         }
 
@@ -58,7 +65,7 @@ namespace InventoryModule.Packer
 
             _buffer = userArray;
             _startOffset = offset;
-            Position = offset;
+            _position = offset;
             _isPooled = false;
         }
 
@@ -66,7 +73,7 @@ namespace InventoryModule.Packer
         public void EnsureCapacity(int bytesToWrite)
         {
             // Hot Path: Directly inlined by JIT due to small IL size
-            if (bytesToWrite > _buffer.Length - Position)
+            if (bytesToWrite > _buffer.Length - _position)
             {
                 Grow(bytesToWrite);
             }
@@ -76,7 +83,7 @@ namespace InventoryModule.Packer
         private void Grow(int bytesToWrite)
         {
             int currentCapacity = _buffer.Length;
-            int requiredCapacity = Position + bytesToWrite;
+            int requiredCapacity = _position + bytesToWrite;
             int newCapacity;
 
             // Small buffers grow exponentially (2x) for fast initial expansion.
@@ -93,7 +100,7 @@ namespace InventoryModule.Packer
             }
 
             byte[] newBuffer = ArrayPool<byte>.Shared.Rent(newCapacity);
-            Unsafe.CopyBlockUnaligned(ref newBuffer[0], ref _buffer[0], (uint)Position);
+            Unsafe.CopyBlockUnaligned(ref newBuffer[0], ref _buffer[_startOffset], (uint)_position);
 
             if (_isPooled)
             {
@@ -104,26 +111,24 @@ namespace InventoryModule.Packer
             _isPooled = true;
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public void Reset()
         {
-            
-            Position = 0;
+            _position = _startOffset;
         }
 
         public void ClearInternalBuffer()
         {
-           
-
             if (_isPooled && _buffer != null)
             {
                 ArrayPool<byte>.Shared.Return(_buffer, clearArray: true);
                 _buffer = null;
             }
 
-            Position = 0;
+            _position = 0;
         }
 
-      
+
         public void Dispose()
         {
             if (_disposed)
@@ -138,6 +143,39 @@ namespace InventoryModule.Packer
             _disposed = true;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public byte[] ToArray()
+        {
+            var length = _position - _startOffset;
+
+            if (length <= 0) return Array.Empty<byte>();
+            var NewArr = new byte[length];
+
+            Buffer.BlockCopy(_buffer, _startOffset, NewArr, 0, length);
+
+            return NewArr;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(byte[] destination, int destinationOffset = 0)
+        {
+            if (destination == null)
+                throw new ArgumentNullException(nameof(destination));
+
+            int length = _position - _startOffset;
+
+            if (destinationOffset < 0 || destinationOffset > destination.Length - length)
+                throw new ArgumentOutOfRangeException(nameof(destinationOffset));
+
+            if (length == 0)
+                return;
+
+            Buffer.BlockCopy(_buffer, _startOffset, destination, destinationOffset, length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ReadOnlySpan<byte> AsSpan() => new(_buffer, _startOffset, _position - _startOffset);
+
         // ── Core unmanaged write (private) ─────────────────────────────
 
         /// <summary>
@@ -145,12 +183,12 @@ namespace InventoryModule.Packer
         /// the buffer with no boxing and no per-type overloads required.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void WriteUnmanaged<T>(T value) where T : unmanaged
+        public void WriteUnmanaged<T>(T value) where T : unmanaged
         {
             int size = Unsafe.SizeOf<T>();
             EnsureCapacity(size);
-            Unsafe.WriteUnaligned(ref _buffer[Position], value);
-            Position += size;
+            Unsafe.WriteUnaligned(ref _buffer[_position], value);
+            _position += size;
         }
 
         // ── Primitives ─────────────────────────────────────────────────
@@ -159,14 +197,14 @@ namespace InventoryModule.Packer
         public void Write(bool value)
         {
             EnsureCapacity(1);
-            _buffer[Position++] = (byte)(value ? 1 : 0);
+            _buffer[_position++] = (byte)(value ? 1 : 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(byte value)
         {
             EnsureCapacity(1);
-            _buffer[Position++] = value;
+            _buffer[_position++] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(sbyte value) => WriteUnmanaged(value);
@@ -192,9 +230,13 @@ namespace InventoryModule.Packer
         /// unmanaged type directly. Works for byte, short, int, long backed enums.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write<TEnum>(TEnum value) where TEnum : unmanaged, Enum
+        public void Write<TEnum>(TEnum value) where TEnum : Enum
         {
-            WriteUnmanaged(value);
+           
+                int size = Unsafe.SizeOf<TEnum>();
+                EnsureCapacity(size);
+                Unsafe.WriteUnaligned(ref _buffer[_position], value);
+                _position += size;
         }
 
         // ── Strings ────────────────────────────────────────────────────
@@ -224,8 +266,8 @@ namespace InventoryModule.Packer
             // Blit UTF-16 chars directly — no encoding overhead.
             ref byte src = ref Unsafe.As<char, byte>(
                 ref MemoryMarshal.GetReference(value.AsSpan()));
-            Unsafe.CopyBlockUnaligned(ref _buffer[Position], ref src, (uint)byteCount);
-            Position += byteCount;
+            Unsafe.CopyBlockUnaligned(ref _buffer[_position], ref src, (uint)byteCount);
+            _position += byteCount;
         }
 
         /// <summary>
@@ -272,8 +314,8 @@ namespace InventoryModule.Packer
             for (int i = 0; i < count; i++)
             {
                 T item = list[i];
-                Unsafe.WriteUnaligned(ref _buffer[Position], item);
-                Position += elementSize;
+                Unsafe.WriteUnaligned(ref _buffer[_position], item);
+                _position += elementSize;
             }
         }
 
@@ -288,8 +330,8 @@ namespace InventoryModule.Packer
             if (count == 0) return;
 
             EnsureCapacity(bytesToCopy);
-            Buffer.BlockCopy(items, 0, _buffer, Position, bytesToCopy);
-            Position += bytesToCopy;
+            Buffer.BlockCopy(items, 0, _buffer, _position, bytesToCopy);
+            _position += bytesToCopy;
         }
 
         /// <summary>
@@ -307,17 +349,9 @@ namespace InventoryModule.Packer
 
             ref byte src = ref Unsafe.As<T, byte>(
                 ref MemoryMarshal.GetReference(items));
-            Unsafe.CopyBlockUnaligned(ref _buffer[Position], ref src, (uint)byteCount);
-            Position += byteCount;
+            Unsafe.CopyBlockUnaligned(ref _buffer[_position], ref src, (uint)byteCount);
+            _position += byteCount;
         }
-
-        /// <summary>
-        /// Writes a Span of unmanaged values: [count: int] [raw bytes].
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write<T>(Span<T> items) where T : unmanaged
-            => Write((ReadOnlySpan<T>)items);
-
         // ── Collections — IEncoder ──────────────────────────────────────
 
         public void Write<T>(List<T> list, bool _ = default) where T : IEncoder
@@ -356,13 +390,14 @@ namespace InventoryModule.Packer
 
     #region ByteReader
 
+    [StructLayout(LayoutKind.Sequential)]
     public ref struct ByteReader
     {
+        private const int NULL_STRING = -1;
+
+        // Structured for register packing: Span (Pointer + Length) followed directly by _position int
         private ReadOnlySpan<byte> _buffer;
         private int _position;
-
-        // Matches ByteWriter: null string sentinel is charCount == -1.
-        private const int NULL_STRING = -1;
 
         public ByteReader(ReadOnlySpan<byte> buffer)
         {
