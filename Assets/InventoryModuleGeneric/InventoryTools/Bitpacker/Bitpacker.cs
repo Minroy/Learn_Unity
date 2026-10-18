@@ -1,10 +1,10 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using static ByteReader;
 
-namespace InventoryModule.Packer
+namespace InventoryModule.Packer.LowLevel
 {
     public interface IEncoder
     {
@@ -13,191 +13,257 @@ namespace InventoryModule.Packer
 
     public interface IDecoder
     {
-        void Decode(ByteReader reader);
+        void Decode(ref ByteReader reader);
     }
 
-    #region ByteWriter
-
     /// <summary>
-    /// Byte-aligned, zero-allocation binary writer backed by ArrayPool.
+    /// Little-endian binary writer backed exclusively by ArrayPool.
+    /// Owns its buffer and does not accept caller-provided arrays.
     /// </summary>
     public sealed class ByteWriter : IDisposable
     {
-        // Threshold configuration for exponential vs. step growth
-        private const int ExponentialGrowthThreshold = 64 * 1024; // 64 KB threshold to avoid LOH allocations
-        private const int LinearStepSize = 128 * 1024;            // 128 KB steps (Aligns with ArrayPool power-of-two buckets)
+        private const int DefaultCapacity = 256;
+        private const int ExponentialGrowthThreshold = 64 * 1024;
+        private const int LinearStepSize = 128 * 1024;
 
-        // 8-byte aligned fields
         private byte[] _buffer;
-        public byte[] BufferInternal => _buffer;
-
-        // 4-byte aligned fields
-        private int _startOffset;
         private int _position;
-        public int Position => _position;
-
-        // 1-byte aligned fields (Packed together at the end to prevent internal padding)
-        private bool _isPooled;
         private bool _disposed;
 
-        public int Capacity => _buffer?.Length ?? 0;
-
-
-        public ByteWriter(int initialCapacity = 256)
+        /// <summary>
+        /// Gets the internal buffer.
+        /// The returned array must not be retained or modified externally.
+        /// Prefer AsSpan(), ToArray(), or CopyTo() where possible.
+        /// </summary>
+        internal byte[] BufferInternal
         {
-            _buffer = ArrayPool<byte>.Shared.Rent(initialCapacity);
-            _startOffset = 0;
-            _isPooled = true;
-            _position = 0;
-            _disposed = false;
+            get
+            {
+                ThrowIfDisposed();
+                return _buffer;
+            }
         }
 
-        // Full User Array (Unpooled)
-        public ByteWriter(byte[] userArray) : this(userArray, 0, userArray?.Length ?? 0) { }
-
-        // User Sub-Buffer with Offset and Length (Unpooled)
-        public ByteWriter(byte[] userArray, int offset, int length)
+        /// <summary>Number of bytes written.</summary>
+        public int Position
         {
-            if (userArray == null)
-                throw new ArgumentNullException(nameof(userArray));
-            if (offset < 0 || length < 0 || offset + length > userArray.Length)
-                throw new ArgumentOutOfRangeException("Invalid offset or length for user buffer.");
-
-            _buffer = userArray;
-            _startOffset = offset;
-            _position = offset;
-            _isPooled = false;
+            get
+            {
+                ThrowIfDisposed();
+                return _position;
+            }
         }
+
+        /// <summary>Physical length of the rented buffer.</summary>
+        public int Capacity
+        {
+            get
+            {
+                ThrowIfDisposed();
+                return _buffer.Length;
+            }
+        }
+
+        public ByteWriter(int initialCapacity = DefaultCapacity)
+        {
+            if (initialCapacity < 0)
+                throw new ArgumentOutOfRangeException(
+                    nameof(initialCapacity));
+
+            _buffer = ArrayPool<byte>.Shared.Rent(
+                Math.Max(initialCapacity, 1));
+        }
+
+        // ------------------------------------------------------------
+        // Lifecycle
+        // ------------------------------------------------------------
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EnsureCapacity(int bytesToWrite)
+        private void ThrowIfDisposed()
         {
-            // Hot Path: Directly inlined by JIT due to small IL size
-            if (bytesToWrite > _buffer.Length - _position)
-            {
-                Grow(bytesToWrite);
-            }
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(ByteWriter));
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void Grow(int bytesToWrite)
-        {
-            int currentCapacity = _buffer.Length;
-            int requiredCapacity = _position + bytesToWrite;
-            int newCapacity;
-
-            // Small buffers grow exponentially (2x) for fast initial expansion.
-            // Large buffers switch to fixed step growth to prevent massive over-allocation spikes.
-            if (currentCapacity < ExponentialGrowthThreshold)
-            {
-                newCapacity = Math.Max(currentCapacity * 2, requiredCapacity);
-            }
-            else
-            {
-                // Calculate growth aligned to step boundaries
-                int steps = (requiredCapacity - currentCapacity + LinearStepSize - 1) / LinearStepSize;
-                newCapacity = currentCapacity + (steps * LinearStepSize);
-            }
-
-            byte[] newBuffer = ArrayPool<byte>.Shared.Rent(newCapacity);
-            Unsafe.CopyBlockUnaligned(ref newBuffer[0], ref _buffer[_startOffset], (uint)_position);
-
-            if (_isPooled)
-            {
-                ArrayPool<byte>.Shared.Return(_buffer, clearArray: true);
-            }
-
-            _buffer = newBuffer;
-            _isPooled = true;
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
+        /// <summary>
+        /// Rewinds the writer without clearing or reallocating its buffer.
+        /// Subsequent writes overwrite data from position zero.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Reset()
         {
-            _position = _startOffset;
-        }
-
-        public void ClearInternalBuffer()
-        {
-            if (_isPooled && _buffer != null)
-            {
-                ArrayPool<byte>.Shared.Return(_buffer, clearArray: true);
-                _buffer = null;
-            }
-
+            ThrowIfDisposed();
             _position = 0;
         }
 
+        /// <summary>
+        /// Clears and returns the current buffer, then rents a fresh
+        /// default-capacity buffer. The writer remains usable.
+        /// </summary>
+        public void ClearInternalBuffer()
+        {
+            ThrowIfDisposed();
 
+            byte[] oldBuffer = _buffer;
+
+            // Establish the new state before releasing the old buffer.
+            // This prevents the writer from retaining a returned array.
+            byte[] newBuffer =
+                ArrayPool<byte>.Shared.Rent(DefaultCapacity);
+
+            _buffer = newBuffer;
+            _position = 0;
+
+            ArrayPool<byte>.Shared.Return(
+                oldBuffer, clearArray: true);
+        }
+
+        /// <summary>
+        /// Returns the buffer to the pool and permanently ends the writer.
+        /// Safe to call more than once.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed)
                 return;
 
-            if (_isPooled && _buffer != null)
+            byte[] oldBuffer = _buffer;
+
+            _buffer = Array.Empty<byte>();
+            _position = 0;
+            _disposed = true;
+
+            ArrayPool<byte>.Shared.Return(
+                oldBuffer, clearArray: true);
+        }
+
+        // ------------------------------------------------------------
+        // Capacity management
+        // ------------------------------------------------------------
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnsureCapacity(int bytesToWrite)
+        {
+            ThrowIfDisposed();
+
+            if (bytesToWrite < 0)
+                throw new ArgumentOutOfRangeException(
+                    nameof(bytesToWrite));
+
+            if (bytesToWrite > _buffer.Length - _position)
+                Grow(bytesToWrite);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void Grow(int bytesToWrite)
+        {
+            // EnsureCapacity has already validated the argument.
+            int requiredCapacity = checked(_position + bytesToWrite);
+            int currentCapacity = _buffer.Length;
+
+            int newCapacity;
+
+            if (currentCapacity < ExponentialGrowthThreshold)
             {
-                ArrayPool<byte>.Shared.Return(_buffer, clearArray: true);
-                _buffer = null;
+                int doubledCapacity = currentCapacity <= int.MaxValue / 2
+                    ? currentCapacity * 2
+                    : int.MaxValue;
+
+                newCapacity = Math.Max(
+                    doubledCapacity, requiredCapacity);
+            }
+            else
+            {
+                long deficit =
+                    (long)requiredCapacity - currentCapacity;
+
+                long steps = Math.Max(
+                    1L,
+                    (deficit + LinearStepSize - 1) / LinearStepSize);
+
+                long candidate =
+                    (long)currentCapacity + steps * LinearStepSize;
+
+                newCapacity = (int)Math.Min(
+                    candidate, int.MaxValue);
+
+                if (newCapacity < requiredCapacity)
+                    newCapacity = requiredCapacity;
             }
 
-            _disposed = true;
+            byte[] newBuffer =
+                ArrayPool<byte>.Shared.Rent(newCapacity);
+
+            Buffer.BlockCopy(
+                _buffer, 0, newBuffer, 0, _position);
+
+            byte[] oldBuffer = _buffer;
+            _buffer = newBuffer;
+
+            ArrayPool<byte>.Shared.Return(
+                oldBuffer, clearArray: true);
         }
+
+        // ------------------------------------------------------------
+        // Output
+        // ------------------------------------------------------------
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte[] ToArray()
         {
-            var length = _position - _startOffset;
+            ThrowIfDisposed();
 
-            if (length <= 0) return Array.Empty<byte>();
-            var NewArr = new byte[length];
+            if (_position == 0)
+                return Array.Empty<byte>();
 
-            Buffer.BlockCopy(_buffer, _startOffset, NewArr, 0, length);
+            byte[] result = new byte[_position];
 
-            return NewArr;
+            Buffer.BlockCopy(
+                _buffer, 0, result, 0, _position);
+
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(byte[] destination, int destinationOffset = 0)
+        public void CopyTo(
+            byte[] destination, int destinationOffset = 0)
         {
+            ThrowIfDisposed();
+
             if (destination == null)
                 throw new ArgumentNullException(nameof(destination));
 
-            int length = _position - _startOffset;
+            if (destinationOffset < 0 ||
+                destinationOffset > destination.Length - _position)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(destinationOffset));
+            }
 
-            if (destinationOffset < 0 || destinationOffset > destination.Length - length)
-                throw new ArgumentOutOfRangeException(nameof(destinationOffset));
-
-            if (length == 0)
+            if (_position == 0)
                 return;
 
-            Buffer.BlockCopy(_buffer, _startOffset, destination, destinationOffset, length);
+            Buffer.BlockCopy(
+                _buffer, 0, destination,
+                destinationOffset, _position);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlySpan<byte> AsSpan() => new(_buffer, _startOffset, _position - _startOffset);
-
-        // ── Core unmanaged write (private) ─────────────────────────────
-
-        /// <summary>
-        /// Writes any unmanaged value (primitive, struct, enum) directly into
-        /// the buffer with no boxing and no per-type overloads required.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WriteUnmanaged<T>(T value) where T : unmanaged
+        public ReadOnlySpan<byte> AsSpan()
         {
-            int size = Unsafe.SizeOf<T>();
-            EnsureCapacity(size);
-            Unsafe.WriteUnaligned(ref _buffer[_position], value);
-            _position += size;
+            ThrowIfDisposed();
+            return new ReadOnlySpan<byte>(_buffer, 0, _position);
         }
 
-        // ── Primitives ─────────────────────────────────────────────────
+        // ------------------------------------------------------------
+        // Primitive writes (little-endian)
+        // ------------------------------------------------------------
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(bool value)
         {
             EnsureCapacity(1);
-            _buffer[_position++] = (byte)(value ? 1 : 0);
+            _buffer[_position++] = value ? (byte)1 : (byte)0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -207,486 +273,374 @@ namespace InventoryModule.Packer
             _buffer[_position++] = value;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(sbyte value) => WriteUnmanaged(value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(short value) => WriteUnmanaged(value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(ushort value) => WriteUnmanaged(value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(int value) => WriteUnmanaged(value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(uint value) => WriteUnmanaged(value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(long value) => WriteUnmanaged(value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(ulong value) => WriteUnmanaged(value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(char value) => WriteUnmanaged(value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Write(decimal value) => WriteUnmanaged(value);
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(float value) => WriteUnmanaged(Unsafe.As<float, int>(ref value));
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(double value) => WriteUnmanaged(Unsafe.As<double, long>(ref value));
-
-        // ── Enums (zero boxing, no unmanaged constraint needed) ────────
-
-        /// <summary>
-        /// Writes any enum with zero boxing by reinterpreting its underlying
-        /// unmanaged type directly. Works for byte, short, int, long backed enums.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write<TEnum>(TEnum value) where TEnum : Enum
+        public void Write(sbyte value)
         {
-           
-                int size = Unsafe.SizeOf<TEnum>();
-                EnsureCapacity(size);
-                Unsafe.WriteUnaligned(ref _buffer[_position], value);
-                _position += size;
+            EnsureCapacity(1);
+            _buffer[_position++] = unchecked((byte)value);
         }
 
-        // ── Strings ────────────────────────────────────────────────────
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(ushort value)
+        {
+            EnsureCapacity(2);
+
+            _buffer[_position++] = (byte)value;
+            _buffer[_position++] = (byte)(value >> 8);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(short value)
+        {
+            Write(unchecked((ushort)value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(int value)
+        {
+            Write(unchecked((uint)value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(uint value)
+        {
+            EnsureCapacity(4);
+
+            _buffer[_position++] = (byte)value;
+            _buffer[_position++] = (byte)(value >> 8);
+            _buffer[_position++] = (byte)(value >> 16);
+            _buffer[_position++] = (byte)(value >> 24);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(long value)
+        {
+            Write(unchecked((ulong)value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(ulong value)
+        {
+            EnsureCapacity(8);
+
+            _buffer[_position++] = (byte)value;
+            _buffer[_position++] = (byte)(value >> 8);
+            _buffer[_position++] = (byte)(value >> 16);
+            _buffer[_position++] = (byte)(value >> 24);
+            _buffer[_position++] = (byte)(value >> 32);
+            _buffer[_position++] = (byte)(value >> 40);
+            _buffer[_position++] = (byte)(value >> 48);
+            _buffer[_position++] = (byte)(value >> 56);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(char value)
+        {
+            Write((ushort)value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(float value)
+        {
+            FloatUnion union = new FloatUnion
+            {
+                Float = value
+            };
+
+            Write(union.Int);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(double value)
+        {
+            DoubleUnion union = new()
+            {
+                Double = value
+            };
+
+            Write(union.Long);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write(decimal value)
+        {
+            int[] bits = decimal.GetBits(value);
+
+            Write(bits[0]); // lo
+            Write(bits[1]); // mid
+            Write(bits[2]); // hi
+            Write(bits[3]); // flags
+        }
+
+
+
+        // ------------------------------------------------------------
+        // String writes
+        // ------------------------------------------------------------
 
         /// <summary>
-        /// Format: [charCount: int] [UTF-16 bytes]
-        /// null  → charCount = -1, no bytes follow.
-        /// empty → charCount =  0, no bytes follow.
+        /// Writes a nullable UTF-16 string.
+        /// Prefix is the number of UTF-16 code units (Int32).
+        /// -1 denotes null; zero denotes an empty string.
+        /// Characters are written as little-endian UInt16 values.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(string value)
         {
-            if (value is null)
+            if (value == null)
             {
-                WriteUnmanaged(-1); // -1
+                Write(-1);
                 return;
             }
 
             int charCount = value.Length;
-            WriteUnmanaged(charCount);
-
-            if (charCount == 0) return;
-
-            int byteCount = charCount * sizeof(char);
-            EnsureCapacity(byteCount);
-
-            // Blit UTF-16 chars directly — no encoding overhead.
-            ref byte src = ref Unsafe.As<char, byte>(
-                ref MemoryMarshal.GetReference(value.AsSpan()));
-            Unsafe.CopyBlockUnaligned(ref _buffer[_position], ref src, (uint)byteCount);
-            _position += byteCount;
-        }
-
-        /// <summary>
-        /// Writes a string array: [count: int] then each string.
-        /// </summary>
-        public void Write(string[] values)
-        {
-            if (values is null) { WriteUnmanaged(0); return; }
-
-            int count = values.Length;
-            WriteUnmanaged(count);
-
-            for (int i = 0; i < count; i++)
-                Write(values[i]);
-        }
-
-        // ── IEncoder ───────────────────────────────────────────────────
-
-        /// <summary>
-        /// Writes a custom IEncoder type with zero boxing.
-        /// The bool _ is a dummy to disambiguate from the unmanaged overloads.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write<T>(T encoder, bool _ = false) where T : IEncoder
-        {
-            encoder?.Encode(this);
-        }
-
-        // ── Collections — unmanaged ─────────────────────────────────────
-
-        public void Write<T>(List<T> list) where T : unmanaged
-        {
-            if (list is null) { WriteUnmanaged(0); return; }
-
-            int count = list.Count;
-            int elementSize = Unsafe.SizeOf<T>();
-            int totalBytes = count * elementSize;
-
-            WriteUnmanaged(count);
-            if (count == 0) return;
-
-            EnsureCapacity(totalBytes);
-
-            for (int i = 0; i < count; i++)
-            {
-                T item = list[i];
-                Unsafe.WriteUnaligned(ref _buffer[_position], item);
-                _position += elementSize;
-            }
-        }
-
-        public void Write<T>(T[] items) where T : unmanaged
-        {
-            if (items is null) { WriteUnmanaged(0); return; }
-
-            int count = items.Length;
-            int bytesToCopy = count * Unsafe.SizeOf<T>();
-
-            WriteUnmanaged(count);
-            if (count == 0) return;
-
-            EnsureCapacity(bytesToCopy);
-            Buffer.BlockCopy(items, 0, _buffer, _position, bytesToCopy);
-            _position += bytesToCopy;
-        }
-
-        /// <summary>
-        /// Writes a ReadOnlySpan of unmanaged values: [count: int] [raw bytes].
-        /// </summary>
-        public void Write<T>(ReadOnlySpan<T> items) where T : unmanaged
-        {
-            int count = items.Length;
-            int byteCount = count * Unsafe.SizeOf<T>();
-
-            WriteUnmanaged(count);
-            if (count == 0) return;
-
-            EnsureCapacity(byteCount);
-
-            ref byte src = ref Unsafe.As<T, byte>(
-                ref MemoryMarshal.GetReference(items));
-            Unsafe.CopyBlockUnaligned(ref _buffer[_position], ref src, (uint)byteCount);
-            _position += byteCount;
-        }
-        // ── Collections — IEncoder ──────────────────────────────────────
-
-        public void Write<T>(List<T> list, bool _ = default) where T : IEncoder
-        {
-            if (list is null) { WriteUnmanaged(0); return; }
-
-            int count = list.Count;
-            WriteUnmanaged(count);
-            if (count == 0) return;
-
-            for (int i = 0; i < count; i++)
-                Write(list[i]);
-        }
-
-        public void Write<T>(T[] items, bool _ = default) where T : IEncoder
-        {
-            if (items is null) { WriteUnmanaged(0); return; }
-
-            int count = items.Length;
-            WriteUnmanaged(count);
-            if (count == 0) return;
-
-            for (int i = 0; i < count; i++)
-                Write(items[i]);
-        }
-
-        public void Write<T>(ReadOnlySpan<T> items, bool _ = default) where T : IEncoder
-        {
-            WriteUnmanaged(items.Length);
-            for (int i = 0; i < items.Length; i++)
-                Write(items[i]);
-        }
-    }
-
-    #endregion
-
-    #region ByteReader
-
-    [StructLayout(LayoutKind.Sequential)]
-    public ref struct ByteReader
-    {
-        private const int NULL_STRING = -1;
-
-        // Structured for register packing: Span (Pointer + Length) followed directly by _position int
-        private ReadOnlySpan<byte> _buffer;
-        private int _position;
-
-        public ByteReader(ReadOnlySpan<byte> buffer)
-        {
-            _buffer = buffer;
-            _position = 0;
-        }
-
-        public readonly int Position => _position;
-        public readonly int Length => _buffer.Length;
-        public readonly int Remaining => _buffer.Length - _position;
-
-        public readonly ReadOnlySpan<byte> AsSpan() => _buffer;
-        public readonly ReadOnlySpan<byte> UnreadSpan => _buffer[_position..];
-
-        // ── Bounds check ───────────────────────────────────────────────
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private readonly void CheckBounds(int bytesNeeded)
-        {
-            if (bytesNeeded < 0 || _position > _buffer.Length - bytesNeeded)
-                throw new InvalidOperationException(
-                    $"ByteReader out of bounds: need {bytesNeeded} byte(s) " +
-                    $"at position {_position}, buffer length {_buffer.Length}.");
-        }
-
-        // ── Core unmanaged read (private) ──────────────────────────────
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void ReadUnmanaged<T>(out T value) where T : unmanaged
-        {
-            int size = Unsafe.SizeOf<T>();
-            CheckBounds(size);
-            ref readonly byte src = ref _buffer[_position];
-            value = Unsafe.ReadUnaligned<T>(ref Unsafe.AsRef(in src));
-            _position += size;
-        }
-
-        // ── Primitives ─────────────────────────────────────────────────
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out bool value)
-        {
-            CheckBounds(1);
-            value = _buffer[_position++] != 0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out byte value)
-        {
-            CheckBounds(1);
-            value = _buffer[_position++];
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out sbyte value) => ReadUnmanaged(out value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out short value) => ReadUnmanaged(out value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out ushort value) => ReadUnmanaged(out value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out int value) => ReadUnmanaged(out value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out uint value) => ReadUnmanaged(out value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out long value) => ReadUnmanaged(out value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out ulong value) => ReadUnmanaged(out value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out char value) => ReadUnmanaged(out value);
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public void Read(out decimal value) => ReadUnmanaged(out value);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out float value)
-        {
-            ReadUnmanaged(out int bits);
-            value = Unsafe.As<int, float>(ref bits);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out double value)
-        {
-            ReadUnmanaged(out long bits);
-            value = Unsafe.As<long, double>(ref bits);
-
-        }
-
-        // ── Enums ──────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Reads any enum with zero boxing.
-        /// Must match the WriteEnum<TEnum> call on the writer side.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read<TEnum>(out TEnum value) where TEnum : unmanaged, Enum
-        {
-            ReadUnmanaged(out value);
-        }
-
-        // ── Strings ────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Reads a UTF-16 string written by ByteWriter.Write(string).
-        /// charCount == -1 → null. charCount == 0 → empty. charCount > 0 → string.
-        /// Throws on corrupt data.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read(out string value)
-        {
-            ReadUnmanaged(out int charCount);
-
-            if (charCount == NULL_STRING)
-            {
-                value = null;
-                return;
-            }
 
             if (charCount == 0)
             {
-                value = string.Empty;
+                Write(0);
                 return;
             }
 
-            if (charCount < 0)
-                throw new InvalidOperationException($"Corrupted payload: charCount was {charCount}.");
+            // Validate multiplication before reserving space.
+            if (charCount > int.MaxValue / 2)
+                throw new ArgumentOutOfRangeException(nameof(value));
 
-            int byteCount = charCount * sizeof(char);
-            CheckBounds(byteCount);
+            int byteCount = charCount * 2;
 
-            ReadOnlySpan<byte> byteSlice = _buffer.Slice(_position, byteCount);
-            ReadOnlySpan<char> charSlice = MemoryMarshal.Cast<byte, char>(byteSlice);
-            value = new string(charSlice);
-            _position += byteCount;
-        }
+            // Reserve prefix and contents together to avoid a second
+            // growth check and ensure the operation fits in the buffer.
+            EnsureCapacity(checked(4 + byteCount));
 
-        /// <summary>
-        /// Reads a string array written by ByteWriter.Write(string[]).
-        /// </summary>
-        public void Read(out string[] values)
-        {
-            ReadUnmanaged(out int count);
+            Write(charCount);
 
-            if (count <= 0)
+            for (int i = 0; i < charCount; i++)
             {
-                values = Array.Empty<string>();
-                return;
-            }
+                char c = value[i];
 
-            values = new string[count];
-            for (int i = 0; i < count; i++)
-                Read(out values[i]);
-        }
-
-        // ── IDecoder ───────────────────────────────────────────────────
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read<T>(T decoder, bool _ = false) where T : IDecoder
-            => decoder?.Decode(this);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Read<T>(out T decoder, bool _ = false) where T : IDecoder, new()
-        {
-            decoder = new T();
-            decoder.Decode(this);
-        }
-
-        // ── Lists — unmanaged ──────────────────────────────────────────
-
-        public void Read<T>(out List<T> list) where T : unmanaged
-        {
-            ReadUnmanaged(out int count);
-
-            if (count <= 0)
-            {
-                list = new List<T>(0);
-                return;
-            }
-
-            list = new List<T>(count);
-            for (int i = 0; i < count; i++)
-            {
-                ReadUnmanaged(out T item);
-                list.Add(item);
-            }
-        }
-
-        // ── Lists — IDecoder ───────────────────────────────────────────
-
-        public void Read<T>(out List<T> list, bool _ = default) where T : IDecoder, new()
-        {
-            ReadUnmanaged(out int count);
-
-            if (count <= 0)
-            {
-                list = new List<T>(0);
-                return;
-            }
-
-            list = new List<T>(count);
-            for (int i = 0; i < count; i++)
-            {
-                T item = new T();
-                item.Decode(this);
-                list.Add(item);
-            }
-        }
-
-        // ── Arrays — unmanaged ─────────────────────────────────────────
-
-        public void Read<T>(out T[] items) where T : unmanaged
-        {
-            ReadUnmanaged(out int count);
-
-            if (count <= 0)
-            {
-                items = Array.Empty<T>();
-                return;
-            }
-
-            items = new T[count];
-            int bytesToCopy = count * Unsafe.SizeOf<T>();
-            CheckBounds(bytesToCopy);
-
-            ref byte src = ref MemoryMarshal.GetReference(_buffer[_position..]);
-            ref byte dest = ref Unsafe.As<T, byte>(ref items[0]);
-            Unsafe.CopyBlockUnaligned(ref dest, ref src, (uint)bytesToCopy);
-            _position += bytesToCopy;
-        }
-
-        // ── Arrays — IDecoder ──────────────────────────────────────────
-
-        public void Read<T>(out T[] items, bool _ = default) where T : IDecoder, new()
-        {
-            ReadUnmanaged(out int count);
-
-            if (count <= 0)
-            {
-                items = Array.Empty<T>();
-                return;
-            }
-
-            items = new T[count];
-            for (int i = 0; i < count; i++)
-            {
-                T item = new();
-                item.Decode(this);
-                items[i] = item;
-            }
-        }
-
-        // ── Spans — unmanaged ──────────────────────────────────────────
-
-        /// <summary>
-        /// Reads into a caller-provided Span. The count stored in the buffer
-        /// must match destination.Length exactly, otherwise data is corrupt.
-        /// </summary>
-        public void Read<T>(Span<T> destination) where T : unmanaged
-        {
-            ReadUnmanaged(out int count);
-
-            if (count <= 0) return;
-
-            if (count != destination.Length)
-                throw new InvalidOperationException(
-                    $"Span length mismatch: buffer has {count} elements, " +
-                    $"destination has {destination.Length}.");
-
-            int bytesToCopy = count * Unsafe.SizeOf<T>();
-            CheckBounds(bytesToCopy);
-
-            ref byte src = ref MemoryMarshal.GetReference(_buffer[_position..]);
-            ref byte dest = ref Unsafe.As<T, byte>(
-                ref MemoryMarshal.GetReference(destination));
-            Unsafe.CopyBlockUnaligned(ref dest, ref src, (uint)bytesToCopy);
-            _position += bytesToCopy;
-        }
-
-        // ── Spans — IDecoder ───────────────────────────────────────────
-
-        public void Read<T>(Span<T> destination, bool _ = default) where T : IDecoder, new()
-        {
-            ReadUnmanaged(out int count);
-
-            if (count <= 0) return;
-
-            if (count != destination.Length)
-                throw new InvalidOperationException(
-                    $"Span length mismatch: buffer has {count} elements, " +
-                    $"destination has {destination.Length}.");
-
-            for (int i = 0; i < count; i++)
-            {
-                T item = new();
-                item.Decode(this);
-                destination[i] = item;
+                _buffer[_position++] = (byte)c;
+                _buffer[_position++] = (byte)(c >> 8);
             }
         }
     }
-
-    #endregion
 }
+
+
+#region ByteReader
+
+/// <summary>
+/// Little-endian reader matching ByteWriter. Every read is bounds-checked
+/// and assembled from single bytes, so there is no alignment dependence.
+/// Corrupt data throws InvalidOperationException (never over-allocates).
+/// </summary>
+public ref struct ByteReader
+{
+    private ReadOnlySpan<byte> _buffer;
+    private int _position;
+
+    public ByteReader(ReadOnlySpan<byte> buffer)
+    {
+        _buffer = buffer;
+        _position = 0;
+    }
+
+    public readonly int Position => _position;
+    public readonly int Length => _buffer.Length;
+    public readonly int Remaining => _buffer.Length - _position;
+    public readonly ReadOnlySpan<byte> AsSpan() => _buffer;
+    public readonly ReadOnlySpan<byte> UnreadSpan => _buffer.Slice(_position);
+
+    // Written as "position > length - needed" rather than "position + needed > length"
+    // so a huge corrupt value can't overflow the addition and slip through.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private readonly void CheckBounds(int bytesNeeded)
+    {
+        if (bytesNeeded < 0 || _position > _buffer.Length - bytesNeeded)
+            throw new InvalidOperationException(
+                $"ByteReader out of bounds: need {bytesNeeded} byte(s) at position {_position}, buffer length {_buffer.Length}.");
+    }
+
+    /// <summary>Jumps over bytes without reading them (used for deleted/unknown fields).</summary>
+    public void Skip(int count)
+    {
+        CheckBounds(count);
+        _position += count;
+    }
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out bool value)
+    {
+        CheckBounds(1);
+        value = _buffer[_position++] != 0;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out byte value)
+    {
+        CheckBounds(1);
+        value = _buffer[_position++];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out sbyte value)
+    {
+        Read(out byte raw);
+        value = unchecked((sbyte)raw);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out ushort value)
+    {
+        CheckBounds(2);
+
+        value = (ushort)(_buffer[_position] | (_buffer[_position + 1] << 8));
+        _position += 2;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out short value)
+    {
+        Read(out ushort raw);
+        value = unchecked((short)raw);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out uint value)
+    {
+        CheckBounds(4);
+
+        value =
+            (uint)_buffer[_position] |
+            ((uint)_buffer[_position + 1] << 8) |
+            ((uint)_buffer[_position + 2] << 16) |
+            ((uint)_buffer[_position + 3] << 24);
+
+        _position += 4;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out int value)
+    {
+        Read(out uint raw);
+        value = unchecked((int)raw);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out ulong value)
+    {
+        CheckBounds(8);
+
+        value =
+            (ulong)_buffer[_position] |
+            ((ulong)_buffer[_position + 1] << 8) |
+            ((ulong)_buffer[_position + 2] << 16) |
+            ((ulong)_buffer[_position + 3] << 24) |
+            ((ulong)_buffer[_position + 4] << 32) |
+            ((ulong)_buffer[_position + 5] << 40) |
+            ((ulong)_buffer[_position + 6] << 48) |
+            ((ulong)_buffer[_position + 7] << 56);
+
+        _position += 8;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out long value)
+    {
+        Read(out ulong raw);
+        value = unchecked((long)raw);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out char value)
+    {
+        Read(out ushort raw);
+        value = (char)raw;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out float value)
+    {
+        Read(out int raw);
+        FloatUnion union = new() { Int = raw };
+        value = union.Float;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Read(out double value)
+    {
+        Read(out long raw);
+        DoubleUnion union = new() { Long = raw };
+        value = union.Double;
+    }
+
+    public void Read(out decimal value)
+    {
+        // Order matches ByteWriter.Write(decimal): lo, mid, hi, flags.
+        Read(out int lo);
+        Read(out int mid);
+        Read(out int hi);
+        Read(out int flags);
+
+        // Bits 0-15 and 24-30 must be zero. Bit 31 is sign, bits 16-23 are scale.
+        if ((flags & 0x7F00FFFF) != 0)
+            throw new InvalidOperationException("Invalid decimal flags.");
+
+        byte scale = (byte)((flags >> 16) & 0xFF);
+        if (scale > 28)
+            throw new InvalidOperationException("Invalid decimal scale.");
+
+        bool isNegative = (flags & int.MinValue) != 0;
+        value = new decimal(lo, mid, hi, isNegative, scale);
+    }
+
+    public void Read(out string value)
+    {
+        Read(out int charCount);
+
+        if (charCount == -1) { value = null; return; }
+        if (charCount < -1)
+            throw new InvalidOperationException("Invalid string length.");
+        if (charCount == 0) { value = string.Empty; return; }
+        if (charCount > int.MaxValue / 2)
+            throw new InvalidOperationException("String length is too large.");
+
+        CheckBounds(charCount * 2);
+
+        char[] chars = new char[charCount];
+        for (int i = 0; i < charCount; i++)
+        {
+            chars[i] = (char)(_buffer[_position] | (_buffer[_position + 1] << 8));
+            _position += 2;
+        }
+
+        value = new string(chars);
+    }
+
+
+
+
+    /// <summary>
+    /// Reinterprets Floats as ints
+    /// </summary>
+    [StructLayout(LayoutKind.Explicit)]
+    public ref struct FloatUnion
+    {
+        [FieldOffset(0)] public float Float;
+        [FieldOffset(0)] public int Int;
+    }
+
+    /// <summary>
+    /// Reinterprets Double as longs.
+    /// </summary>
+    [StructLayout(LayoutKind.Explicit)]
+    public ref struct DoubleUnion
+    {
+        [FieldOffset(0)] public double Double;
+        [FieldOffset(0)] public long Long;
+    }
+
+
+}
+#endregion
+
+

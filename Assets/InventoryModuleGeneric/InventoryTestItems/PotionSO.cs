@@ -16,17 +16,5 @@ public class PotionSO : ItemScriptableObject, IStackable
        return Exp.Equals(Example1);
     }
 
-    public void OnWrite(InstanceDataWriter writer)
-    {
-        writer.Write(Example1);
-        writer.Write(Exp);
-    }
-
-    public void OnRead(InstanceDataReader reader)
-    {
-      
-    }
-
-   
 }
 

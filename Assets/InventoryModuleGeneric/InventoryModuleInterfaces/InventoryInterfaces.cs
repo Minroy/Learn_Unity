@@ -85,25 +85,5 @@ namespace InventoryModule
     {
         public ulong InstanceId { get; set; }
     }
-
-    public interface IInstanceDataPacker
-    {
-        /// <summary>
-        /// What Data this Instance will have unique. Order of writing Matters.
-        /// </summary>
-        /// <param name="writer"> what Data that needs to be written</param>
-        public void WriteDataToPacker(ByteWriter writer);
-
-        /// <summary>
-        /// What Data this Instance will read back, During or after creation. 
-        /// </summary>
-        /// <param name="reader">this reads what data is given</param>
-        public void ReadDataFormPacker(ByteReader reader);
-    }
-
-    public interface IInstanceDataPackerAuto // todo
-    {
-
-    }
 }
 

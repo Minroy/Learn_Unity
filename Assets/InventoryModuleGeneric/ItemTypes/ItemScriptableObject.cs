@@ -34,53 +34,8 @@ namespace InventoryModule
     /// <summary>
     /// This class makes this Item type of Instance
     /// </summary>
-    public abstract class InstanceItemScriptableObject : ScriptableObject, IInstanceable , IInstanceDataPacker
+    public abstract class InstanceItemScriptableObject : ScriptableObject
     {
-        [SerializeField, HideInInspector] private uint itemId = 0;
-        [SerializeField] private int maxAmount;
-        [SerializeField] private Sprite icon;
-        private ulong instanceID = 0;
-        public uint ItemId => itemId == 0 ? 0 : itemId;
-
-        public int MaxAmount => maxAmount;
-
-        public Sprite Icon => icon;
-
-        public ulong InstanceId { get => instanceID; set => instanceID = value; }
-
-        
-
-        public abstract void DeserializeData(ByteReader reader);
-        public abstract void SerializeData(ByteWriter writer);
        
-
-        private void Awake()
-        {
-            //Safety feature to prevent Editor form Writing
-            if (!Application.isPlaying)
-                return;
-
-            if (instanceID == 0)
-                instanceID = InstanceIDHandler.GenerateID();
-
-            InstanceDataWriter.Instance.BeginWriting(this);
-        }
-
-        //expicit to prevent external for rewriting 
-        void IItem.SetID(uint id)
-        {
-            itemId = id;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WriteDataToPacker(ByteWriter writer)
-        {
-            SerializeData(writer);
-        }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ReadDataFormPacker(ByteReader reader)
-        {
-            DeserializeData(reader);
-        }
     }
 }
