@@ -26,23 +26,11 @@ namespace InventoryModule.Packer.LowLevel
         private const int ExponentialGrowthThreshold = 64 * 1024;
         private const int LinearStepSize = 128 * 1024;
 
+        private const int MaxPayload = 1024 * 1024 * 10;
+
         private byte[] _buffer;
         private int _position;
         private bool _disposed;
-
-        /// <summary>
-        /// Gets the internal buffer.
-        /// The returned array must not be retained or modified externally.
-        /// Prefer AsSpan(), ToArray(), or CopyTo() where possible.
-        /// </summary>
-        internal byte[] BufferInternal
-        {
-            get
-            {
-                ThrowIfDisposed();
-                return _buffer;
-            }
-        }
 
         /// <summary>Number of bytes written.</summary>
         public int Position
@@ -149,6 +137,10 @@ namespace InventoryModule.Packer.LowLevel
             if (bytesToWrite < 0)
                 throw new ArgumentOutOfRangeException(
                     nameof(bytesToWrite));
+
+            if (bytesToWrite > MaxPayload - _position)
+                throw new InvalidOperationException(
+                    $"Maximum payload size of {MaxPayload / (1024 * 1024)} MB exceeded.");
 
             if (bytesToWrite > _buffer.Length - _position)
                 Grow(bytesToWrite);
